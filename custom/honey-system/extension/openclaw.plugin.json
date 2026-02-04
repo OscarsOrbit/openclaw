@@ -1,0 +1,16 @@
+{
+  "id": "honey",
+  "name": "Honey Context Recovery",
+  "version": "1.0.0",
+  "description": "Captures conversation turns and injects context after compaction",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "serviceUrl": {
+        "type": "string",
+        "default": "http://localhost:7779"
+      }
+    }
+  }
+}
