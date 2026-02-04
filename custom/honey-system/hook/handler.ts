@@ -73,7 +73,10 @@ const handler = async (event: HookEvent): Promise<void> => {
       return;
     }
 
-    const data = await resp.json() as { turns?: Array<{ turn_type: string; content: string; timestamp: number }> };
+    const data = await resp.json() as { 
+      turns?: Array<{ turn_type: string; content: string; timestamp: number }>;
+      storage?: string;
+    };
 
     if (!data.turns || data.turns.length === 0) {
       // Inject "no honey" marker so we know injection ran
@@ -99,7 +102,8 @@ const handler = async (event: HookEvent): Promise<void> => {
       return `${role} [${time}] ${t.content}`;
     }).join('\n');
 
-    const honeyContent = `## Recent Context (recovered from Honey)\n\n${formatted}\n\n---\n\n`;
+    const storageLabel = data.storage?.includes('neon') ? '☁️ NEON' : (data.storage || 'local');
+    const honeyContent = `## Recent Context (recovered from Honey — ${storageLabel})\n\n${formatted}\n\n---\n`;
 
     // Inject at start of bootstrap
     if (Array.isArray(event.context.bootstrapFiles)) {
@@ -109,7 +113,7 @@ const handler = async (event: HookEvent): Promise<void> => {
         content: honeyContent,
         missing: false
       });
-      console.log(`[honey-inject] Injected ${data.turns.length} turns of context`);
+      console.log(`[honey-inject] Injected ${data.turns.length} turns from ${storageLabel}`);
     }
 
   } catch (e: any) {
