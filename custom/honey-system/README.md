@@ -1,12 +1,14 @@
-# 🍯 Honey System — Compaction-Resistant Memory
+# 🍯 Honey System — Nuclear-Proof Memory
 
-Honey captures conversation turns in real-time and injects them back into context after compaction, giving Splinter persistent memory that survives the context reset.
+Honey captures conversation turns in real-time and injects them back into context after compaction, giving Splinter persistent memory that survives anything — compaction, restarts, reboots, even the Mac drowning in the ocean.
+
+**Storage:** Neon PostgreSQL (cloud) → SQLite (local) → JSON (fallback)
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Honey System                              │
+│                     Honey System (v2 - Neon)                     │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
@@ -15,9 +17,9 @@ Honey captures conversation turns in real-time and injects them back into contex
 │   └──────────────┘     └──────────────┘     └──────────────┘   │
 │         │                     │                     │           │
 │         ▼                     ▼                     ▼           │
-│   Watches JSONL         Stores turns         On bootstrap,     │
-│   session files         in memory            fetches recent    │
-│   for new turns         per session          turns & injects   │
+│   Watches JSONL         ☁️ NEON DB ☁️        On bootstrap,     │
+│   session files         Cloud-persistent     fetches recent    │
+│   for new turns         PostgreSQL           turns & injects   │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -43,10 +45,32 @@ Honey captures conversation turns in real-time and injects them back into contex
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `NEON_DATABASE_URL` | — | Neon PostgreSQL connection string (required for cloud persistence) |
 | `HONEY_LIMIT` | `30` | Number of turns to inject after compaction |
-| `HONEY_URL` | `http://localhost:7779` | Honey server URL |
+| `HONEY_PORT` | `7779` | Port for Honey HTTP server |
+| `DATABASE_URL` | — | Fallback if NEON_DATABASE_URL not set |
 
-**Our config: `HONEY_LIMIT=40`**
+**Our config:** 
+- `HONEY_LIMIT=40`
+- `NEON_DATABASE_URL=postgresql://...neon.tech/neondb`
+
+## Auto-Start (macOS)
+
+Honey uses a LaunchAgent to start automatically on boot:
+- Plist: `~/Library/LaunchAgents/com.openclaw.honey.plist`
+- Logs: `~/.openclaw/workspace/honey/logs/`
+
+Manual control:
+```bash
+# Stop
+launchctl unload ~/Library/LaunchAgents/com.openclaw.honey.plist
+
+# Start
+launchctl load ~/Library/LaunchAgents/com.openclaw.honey.plist
+
+# Check status
+curl http://localhost:7779/status
+```
 
 ## Installation
 

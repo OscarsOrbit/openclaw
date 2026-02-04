@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.openclaw.honey</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/oscar/.nvm/versions/node/v24.4.1/bin/node</string>
+        <string>/Users/oscar/.openclaw/workspace/honey/service.js</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/oscar/.openclaw/workspace/honey</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HONEY_LIMIT</key>
+        <string>40</string>
+        <key>NEON_DATABASE_URL</key>
+        <string>postgresql://neondb_owner:npg_tprKg0ODVPT7@ep-super-boat-akkqkd4c-pooler.c-3.us-west-2.aws.neon.tech/neondb?sslmode=require</string>
+        <key>PATH</key>
+        <string>/Users/oscar/.nvm/versions/node/v24.4.1/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/oscar/.openclaw/workspace/honey/logs/honey.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/oscar/.openclaw/workspace/honey/logs/honey.error.log</string>
+    
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>
