@@ -106,12 +106,6 @@ export const icons = {
   check: html`
     <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
   `,
-  arrowDown: html`
-    <svg viewBox="0 0 24 24">
-      <path d="M12 5v14" />
-      <path d="m19 12-7 7-7-7" />
-    </svg>
-  `,
   copy: html`
     <svg viewBox="0 0 24 24">
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
@@ -228,6 +222,123 @@ export const icons = {
       />
     </svg>
   `,
+  // Microphone for voice input
+  mic: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" x2="12" y1="19" y2="22" />
+    </svg>
+  `,
+  micOff: html`
+    <svg viewBox="0 0 24 24">
+      <line x1="2" x2="22" y1="2" y2="22" />
+      <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2" />
+      <path d="M5 10v2a7 7 0 0 0 12 5" />
+      <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33" />
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
+      <line x1="12" x2="12" y1="19" y2="22" />
+    </svg>
+  `,
+  // Splinter UI icons
+  chevronRight: html`
+    <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+  `,
+  checkCircle: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <path d="m9 11 3 3L22 4" />
+    </svg>
+  `,
+  xCircle: html`
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" />
+      <path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
+    </svg>
+  `,
+  droplets: html`
+    <svg viewBox="0 0 24 24">
+      <path
+        d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"
+      />
+      <path
+        d="M12.56 14.69c1.56 0 2.83-1.3 2.83-2.88 0-.82-.4-1.6-1.21-2.26-.82-.66-1.35-1.37-1.62-2.25-.27 1.03-.8 2.01-1.62 2.67S10 11.58 10 12.4c0 1.58 1.27 2.88 2.83 2.88z"
+      />
+      <path
+        d="M17 18.7c1.3 0 2.4-1.1 2.4-2.42 0-.66-.32-1.28-.97-1.81-.65-.53-1.09-1.1-1.31-1.8-.22.83-.65 1.62-1.31 2.15-.66.53-.97 1.15-.97 1.81 0 1.32 1.1 2.42 2.4 2.42z"
+      />
+    </svg>
+  `,
+  pencil: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  `,
+  hash: html`
+    <svg viewBox="0 0 24 24">
+      <line x1="4" x2="20" y1="9" y2="9" />
+      <line x1="4" x2="20" y1="15" y2="15" />
+      <line x1="10" x2="8" y1="3" y2="21" />
+      <line x1="16" x2="14" y1="3" y2="21" />
+    </svg>
+  `,
+  cloud: html`
+    <svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /></svg>
+  `,
+  squareStop: html`
+    <svg viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="1" /></svg>
+  `,
+  listPlus: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M11 12H3" />
+      <path d="M16 6H3" />
+      <path d="M16 18H3" />
+      <path d="M18 9v6" />
+      <path d="M21 12h-6" />
+    </svg>
+  `,
+  rotateCcw: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
+  `,
+  shrink: html`
+    <svg viewBox="0 0 24 24">
+      <path d="m15 15 6 6m-6-6v4.8m0-4.8h4.8" />
+      <path d="M9 19.8V15m0 0H4.2M9 15l-6 6" />
+      <path d="M15 4.2V9m0 0h4.8M15 9l6-6" />
+      <path d="M9 4.2V9m0 0H4.2M9 9 3 3" />
+    </svg>
+  `,
+  chevronUp: html`
+    <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6" /></svg>
+  `,
+  chevronDown: html`
+    <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+  `,
+  maximize: html`
+    <svg viewBox="0 0 24 24">
+      <polyline points="15 3 21 3 21 9" />
+      <polyline points="9 21 3 21 3 15" />
+      <line x1="21" x2="14" y1="3" y2="10" />
+      <line x1="3" x2="10" y1="21" y2="14" />
+    </svg>
+  `,
+  refreshCw: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+    </svg>
+  `,
+  send: html`
+    <svg viewBox="0 0 24 24">
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="m22 2-11 11" />
+    </svg>
+  `,
 } as const;
 
 export type IconName = keyof typeof icons;
@@ -249,8 +360,6 @@ export function renderEmojiIcon(
 }
 
 export function setEmojiIcon(target: HTMLElement | null, icon: string): void {
-  if (!target) {
-    return;
-  }
+  if (!target) return;
   target.textContent = icon;
 }

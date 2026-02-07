@@ -5,13 +5,13 @@
   --bg: #12141a;
   --bg-accent: #14161d;
   --bg-elevated: #1a1d25;
-  --bg-hover: #262a35;
-  --bg-muted: #262a35;
+  --bg-hover: #1e2028;
+  --bg-muted: #1e2028;
 
   /* Card / Surface - More contrast between levels */
-  --card: #181b22;
+  --card: #1a1d26;
   --card-foreground: #f4f4f5;
-  --card-highlight: rgba(255, 255, 255, 0.05);
+  --card-highlight: rgba(255, 255, 255, 0.03);
   --popover: #181b22;
   --popover-foreground: #f4f4f5;
 
@@ -196,11 +196,12 @@
 html,
 body {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
   margin: 0;
-  font: 400 14px/1.55 var(--font-body);
+  font: 400 13px/1.5 var(--font-body);
   letter-spacing: -0.02em;
   background: var(--bg);
   color: var(--text);
@@ -272,8 +273,8 @@ select {
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {

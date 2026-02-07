@@ -88,6 +88,9 @@
   background: var(--secondary);
   color: var(--muted);
 }
+.chat-avatar--spacer {
+  visibility: hidden;
+}
 
 /* Image avatar support */
 img.chat-avatar {
@@ -241,7 +244,67 @@ img.chat-avatar {
   background: rgba(255, 77, 77, 0.15);
 }
 
+/* Assistant message (no bubble) */
+.chat-message--assistant {
+  position: relative;
+  display: inline-block;
+  padding: 4px 0;
+  max-width: 100%;
+  word-wrap: break-word;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.chat-message--assistant.has-copy {
+  padding-right: 36px;
+}
+
+.chat-message--assistant:hover .chat-copy-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Streaming glow on avatar and name */
+.chat-group--streaming .chat-avatar {
+  box-shadow:
+    0 0 4px rgba(255, 92, 92, 0.2),
+    0 0 8px rgba(255, 92, 92, 0.08);
+  animation: avatar-glow 2s ease-in-out infinite;
+}
+
+.chat-sender-name--streaming {
+  color: var(--accent) !important;
+  text-shadow: 0 0 8px rgba(255, 92, 92, 0.4);
+  animation: name-glow 2s ease-in-out infinite;
+}
+
+@keyframes avatar-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 4px rgba(255, 92, 92, 0.2),
+      0 0 8px rgba(255, 92, 92, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 8px rgba(255, 92, 92, 0.35),
+      0 0 14px rgba(255, 92, 92, 0.12);
+  }
+}
+
+@keyframes name-glow {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* Streaming animation */
+.chat-message--assistant.streaming,
 .chat-bubble.streaming {
   animation: pulsing-border 1.5s ease-out infinite;
 }
@@ -257,6 +320,7 @@ img.chat-avatar {
 }
 
 /* Fade-in animation for new messages */
+.chat-message--assistant.fade-in,
 .chat-bubble.fade-in {
   animation: fade-in 200ms ease-out;
 }

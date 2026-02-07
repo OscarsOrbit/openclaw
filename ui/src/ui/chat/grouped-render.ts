@@ -56,7 +56,7 @@ function extractImages(message: unknown): ImageBlock[] {
 
 export function renderReadingIndicatorGroup(assistant?: AssistantIdentity) {
   return html`
-    <div class="chat-group assistant">
+    <div class="chat-group assistant chat-group--streaming">
       ${renderAvatar("assistant", assistant)}
       <div class="chat-group-messages">
         <div class="chat-bubble chat-reading-indicator" aria-hidden="true">
@@ -82,7 +82,7 @@ export function renderStreamingGroup(
   const name = assistant?.name ?? "Assistant";
 
   return html`
-    <div class="chat-group assistant">
+    <div class="chat-group assistant chat-group--streaming">
       ${renderAvatar("assistant", assistant)}
       <div class="chat-group-messages">
         ${renderGroupedMessage(
@@ -95,7 +95,7 @@ export function renderStreamingGroup(
           onOpenSidebar,
         )}
         <div class="chat-group-footer">
-          <span class="chat-sender-name">${name}</span>
+          <span class="chat-sender-name chat-sender-name--streaming">${name}</span>
           <span class="chat-group-timestamp">${timestamp}</span>
         </div>
       </div>
@@ -116,7 +116,7 @@ export function renderMessageGroup(
   const assistantName = opts.assistantName ?? "Assistant";
   const who =
     normalizedRole === "user"
-      ? "You"
+      ? "Oscar"
       : normalizedRole === "assistant"
         ? assistantName
         : normalizedRole;
@@ -127,12 +127,19 @@ export function renderMessageGroup(
     minute: "2-digit",
   });
 
+  const showAvatar = normalizedRole === "user" || normalizedRole === "assistant";
   return html`
     <div class="chat-group ${roleClass}">
-      ${renderAvatar(group.role, {
-        name: assistantName,
-        avatar: opts.assistantAvatar ?? null,
-      })}
+      ${
+        showAvatar
+          ? renderAvatar(group.role, {
+              name: assistantName,
+              avatar: opts.assistantAvatar ?? null,
+            })
+          : html`
+              <div class="chat-avatar chat-avatar--spacer"></div>
+            `
+      }
       <div class="chat-group-messages">
         ${group.messages.map((item, index) =>
           renderGroupedMessage(
@@ -159,9 +166,9 @@ function renderAvatar(role: string, assistant?: Pick<AssistantIdentity, "name" |
   const assistantAvatar = assistant?.avatar?.trim() || "";
   const initial =
     normalized === "user"
-      ? "U"
+      ? "O"
       : normalized === "assistant"
-        ? assistantName.charAt(0).toUpperCase() || "A"
+        ? "S"
         : normalized === "tool"
           ? "⚙"
           : "?";
@@ -242,16 +249,33 @@ function renderGroupedMessage(
   const markdown = markdownBase;
   const canCopyMarkdown = role === "assistant" && Boolean(markdown?.trim());
 
-  const bubbleClasses = [
-    "chat-bubble",
-    canCopyMarkdown ? "has-copy" : "",
-    opts.isStreaming ? "streaming" : "",
-    "fade-in",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const normalizedRole = normalizeRoleForGrouping(role);
+  const isAssistant = normalizedRole === "assistant";
 
-  if (!markdown && hasToolCards && isToolResult) {
+  const bubbleClasses = isAssistant
+    ? [
+        "chat-message--assistant",
+        canCopyMarkdown ? "has-copy" : "",
+        opts.isStreaming ? "streaming" : "",
+        "fade-in",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : [
+        "chat-bubble",
+        canCopyMarkdown ? "has-copy" : "",
+        opts.isStreaming ? "streaming" : "",
+        "fade-in",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+  // Tool result messages: only show the chevron, not the raw text above it
+  if (isToolResult && hasToolCards) {
+    return html`${toolCards.map((card) => renderToolCardSidebar(card, onOpenSidebar))}`;
+  }
+
+  if (!markdown && hasToolCards) {
     return html`${toolCards.map((card) => renderToolCardSidebar(card, onOpenSidebar))}`;
   }
 

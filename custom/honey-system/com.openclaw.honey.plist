@@ -17,7 +17,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>HONEY_LIMIT</key>
-        <string>40</string>
+        <string>100</string>
         <key>NEON_DATABASE_URL</key>
         <string>postgresql://neondb_owner:npg_tprKg0ODVPT7@ep-super-boat-akkqkd4c-pooler.c-3.us-west-2.aws.neon.tech/neondb?sslmode=require</string>
         <key>PATH</key>

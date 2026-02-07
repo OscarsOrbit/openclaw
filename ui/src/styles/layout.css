@@ -6,16 +6,17 @@
   --shell-pad: 16px;
   --shell-gap: 16px;
   --shell-nav-width: 220px;
-  --shell-topbar-height: 56px;
+  --shell-topbar-height: 48px;
   --shell-focus-duration: 200ms;
   --shell-focus-ease: var(--ease-out);
   height: 100vh;
   display: grid;
   grid-template-columns: var(--shell-nav-width) minmax(0, 1fr);
-  grid-template-rows: var(--shell-topbar-height) 1fr;
+  grid-template-rows: var(--shell-topbar-height) 1fr auto;
   grid-template-areas:
     "topbar topbar"
-    "nav content";
+    "nav content"
+    "statusbar statusbar";
   gap: 0;
   animation: dashboard-enter 0.4s var(--ease-out);
   transition: grid-template-columns var(--shell-focus-duration) var(--shell-focus-ease);
@@ -81,10 +82,11 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 0 20px;
+  padding: 0 16px;
   height: var(--shell-topbar-height);
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background: rgba(18, 20, 26, 0.95);
+  backdrop-filter: blur(12px);
 }
 
 .topbar-left {
@@ -198,8 +200,9 @@
   grid-area: nav;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 16px 12px;
-  background: var(--bg);
+  padding: 12px 10px;
+  background: #0e1015;
+  border-right: 1px solid var(--border);
   scrollbar-width: none; /* Firefox */
   transition:
     width var(--shell-focus-duration) var(--shell-focus-ease),
@@ -279,9 +282,9 @@
 
 /* Nav groups */
 .nav-group {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .nav-group:last-child {
@@ -304,11 +307,14 @@
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 6px 10px;
-  font-size: 11px;
-  font-weight: 500;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
   color: var(--muted);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--mono);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -353,9 +359,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
@@ -389,7 +395,7 @@
 }
 
 .nav-item__text {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -405,13 +411,24 @@
 }
 
 .nav-item.active {
-  color: var(--text-strong);
-  background: var(--accent-subtle);
+  color: var(--accent);
+  background: rgba(255, 92, 92, 0.1);
 }
 
 .nav-item.active .nav-item__icon {
   opacity: 1;
   color: var(--accent);
+}
+
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 1px;
 }
 
 /* ===========================================
@@ -420,7 +437,7 @@
 
 .content {
   grid-area: content;
-  padding: 12px 16px 32px;
+  padding: 10px 16px 24px;
   display: block;
   min-height: 0;
   overflow-y: auto;
@@ -562,6 +579,411 @@
 }
 
 /* ===========================================
+   Splinter Branding (Sidebar)
+   =========================================== */
+
+/* Hide content header in chat mode */
+.content-header--chat {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  border: none !important;
+}
+
+.content-header--chat .page-meta:empty {
+  display: none;
+}
+
+.splinter-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.splinter-brand__logo {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 15px rgba(255, 92, 92, 0.3);
+  overflow: hidden;
+}
+
+.splinter-brand__logo img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(255, 92, 92, 0.5));
+}
+
+.splinter-brand__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.splinter-brand__name {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--text-strong);
+}
+
+.splinter-brand__sub {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--muted);
+  line-height: 1;
+}
+
+/* ===========================================
+   Splinter Status Bar
+   =========================================== */
+
+.splinter-statusbar {
+  grid-area: statusbar;
+  height: 28px;
+  background: #000000;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.splinter-statusbar__left,
+.splinter-statusbar__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.splinter-statusbar__model {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.splinter-statusbar__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.splinter-statusbar__dot--ok {
+  background: var(--accent-2);
+}
+
+.splinter-statusbar__context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.splinter-statusbar__context-label {
+  text-transform: uppercase;
+}
+
+.splinter-statusbar__meter {
+  width: 96px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.splinter-statusbar__meter-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.3s var(--ease-out);
+}
+
+.splinter-statusbar__meter-fill.ctx-ok {
+  background: var(--accent-2);
+}
+
+.splinter-statusbar__meter-fill.ctx-warn {
+  background: var(--warn);
+}
+
+.splinter-statusbar__meter-fill.ctx-danger {
+  background: var(--danger);
+}
+
+.splinter-statusbar__context-pct {
+  font-weight: 700;
+}
+
+.splinter-statusbar__context-pct.ctx-ok {
+  color: var(--accent-2);
+}
+
+.splinter-statusbar__context-pct.ctx-warn {
+  color: var(--warn);
+}
+
+.splinter-statusbar__context-pct.ctx-danger {
+  color: var(--danger);
+}
+
+.splinter-statusbar__context-detail {
+  opacity: 0.5;
+}
+
+.splinter-statusbar__honey {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(251, 146, 60, 0.8);
+}
+
+.splinter-statusbar__honey svg {
+  width: 11px;
+  height: 11px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.splinter-statusbar__session-id {
+  opacity: 0.4;
+}
+
+/* ===========================================
+   Topbar Context (model + context meter + honey)
+   =========================================== */
+
+.topbar-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.topbar-context__model {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.topbar-context__sep {
+  opacity: 0.3;
+}
+
+.topbar-context__label {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.topbar-context__meter {
+  width: 64px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.topbar-context__meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.3s var(--ease-out);
+}
+
+.topbar-context__meter-fill.ctx-ok {
+  background: var(--accent-2);
+}
+.topbar-context__meter-fill.ctx-warn {
+  background: var(--warn);
+}
+.topbar-context__meter-fill.ctx-danger {
+  background: var(--danger);
+}
+
+.topbar-context__pct {
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.topbar-context__pct.ctx-ok {
+  color: var(--accent-2);
+}
+.topbar-context__pct.ctx-warn {
+  color: var(--warn);
+}
+.topbar-context__pct.ctx-danger {
+  color: var(--danger);
+}
+
+.topbar-context__detail {
+  opacity: 0.5;
+  font-size: 10px;
+}
+
+.topbar-context__honey-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.topbar-context__honey-icon svg {
+  width: 12px;
+  height: 12px;
+  stroke: rgba(251, 191, 36, 0.8);
+  stroke-width: 2;
+  fill: none;
+  margin-right: 3px;
+}
+.topbar-context__meter-fill--honey {
+  background: rgba(251, 191, 36, 0.7);
+  min-width: 3px;
+}
+.topbar-context__honey-storage {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  margin-left: 2px;
+}
+.topbar-context__honey-storage svg {
+  width: 10px;
+  height: 10px;
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 2;
+  fill: none;
+}
+
+/* ===========================================
+   Splinter Header Controls
+   =========================================== */
+
+.splinter-header-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.splinter-header-btn:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-color: rgba(255, 92, 92, 0.3);
+}
+
+.splinter-header-btn--active {
+  color: var(--accent);
+  background: rgba(255, 92, 92, 0.12);
+  border-color: rgba(255, 92, 92, 0.3);
+}
+
+.splinter-header-btn--active .splinter-header-btn__icon svg {
+  filter: drop-shadow(0 0 5px var(--accent));
+}
+
+.splinter-header-btn--voice:hover {
+  color: var(--accent-2);
+  background: var(--accent-2-subtle);
+  border-color: rgba(20, 184, 166, 0.3);
+}
+
+.splinter-header-btn--voice-active {
+  color: var(--accent);
+  background: rgba(255, 92, 92, 0.12);
+  border-color: rgba(255, 92, 92, 0.3);
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+.splinter-header-btn__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.splinter-header-btn__icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.splinter-header-btn__label {
+  font-weight: 500;
+}
+
+/* ===========================================
+   Channel indicator (header)
+   =========================================== */
+
+.splinter-channel-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: default;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.splinter-channel-indicator:hover {
+  border-color: rgba(255, 92, 92, 0.3);
+}
+
+.splinter-channel-indicator__icon {
+  display: flex;
+  align-items: center;
+  width: 14px;
+  height: 14px;
+  color: rgba(255, 92, 92, 0.7);
+}
+
+.splinter-channel-indicator__icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.splinter-channel-indicator__name {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* ===========================================
    Responsive - Tablet
    =========================================== */
 
@@ -570,11 +992,12 @@
     --shell-pad: 12px;
     --shell-gap: 12px;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto auto 1fr auto;
     grid-template-areas:
       "topbar"
       "nav"
-      "content";
+      "content"
+      "statusbar";
   }
 
   .nav {

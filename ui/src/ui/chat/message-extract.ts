@@ -29,16 +29,33 @@ function looksLikeEnvelopeHeader(header: string): boolean {
   return ENVELOPE_CHANNELS.some((label) => header.startsWith(`${label} `));
 }
 
+/** Strip system message blocks (GatewayRestart JSON, etc.) from user text */
+function stripSystemBlocks(text: string): string {
+  // Remove "System: [timestamp] GatewayRestart:\n{...}\n" blocks
+  let result = text.replace(
+    /System:\s*\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?\s+\w+\]\s*GatewayRestart:\s*\{[\s\S]*?\n\}\s*/g,
+    "",
+  );
+  // Remove standalone "System: [timestamp] ..." lines (single-line system messages)
+  result = result.replace(
+    /^System:\s*\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?\s+\w+\]\s*[^\n]*$/gm,
+    "",
+  );
+  return result.trim();
+}
+
 export function stripEnvelope(text: string): string {
-  const match = text.match(ENVELOPE_PREFIX);
+  // First strip system blocks
+  let processed = stripSystemBlocks(text);
+  const match = processed.match(ENVELOPE_PREFIX);
   if (!match) {
-    return text;
+    return processed;
   }
   const header = match[1] ?? "";
   if (!looksLikeEnvelopeHeader(header)) {
-    return text;
+    return processed;
   }
-  return text.slice(match[0].length);
+  return processed.slice(match[0].length);
 }
 
 export function extractText(message: unknown): string | null {

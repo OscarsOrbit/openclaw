@@ -209,7 +209,7 @@ export function subtitleForTab(tab: Tab) {
     case "nodes":
       return "Paired devices, capabilities, and command exposure.";
     case "chat":
-      return "Direct gateway chat session for quick interventions.";
+      return "Direct Splinter chat session.";
     case "config":
       return "Edit ~/.openclaw/openclaw.json safely.";
     case "debug":

@@ -48,6 +48,7 @@ import { formatForLog, logWs } from "../../ws-log.js";
 import { truncateCloseReason } from "../close-reason.js";
 import {
   buildGatewaySnapshot,
+  enrichSnapshotWithHoney,
   getHealthCache,
   getHealthVersion,
   incrementPresenceVersion,
@@ -849,6 +850,7 @@ export function attachGatewayWsMessageHandler(params: {
           snapshot.health = cachedHealth;
           snapshot.stateVersion.health = getHealthVersion();
         }
+        await enrichSnapshotWithHoney(snapshot);
         const helloOk = {
           type: "hello-ok",
           protocol: PROTOCOL_VERSION,

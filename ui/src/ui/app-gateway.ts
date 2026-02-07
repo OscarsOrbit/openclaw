@@ -145,6 +145,15 @@ export function connectGateway(host: GatewayHost) {
       void loadNodes(host as unknown as OpenClawApp, { quiet: true });
       void loadDevices(host as unknown as OpenClawApp, { quiet: true });
       void refreshActiveTab(host as unknown as Parameters<typeof refreshActiveTab>[0]);
+      // Fetch honey status
+      host.client
+        .request("honey.status", {})
+        .then((res: any) => {
+          (host as any).honeyStatus = res ?? null;
+        })
+        .catch(() => {
+          (host as any).honeyStatus = null;
+        });
     },
     onClose: ({ code, reason }) => {
       host.connected = false;

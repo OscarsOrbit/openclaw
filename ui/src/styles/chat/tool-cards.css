@@ -1,4 +1,6 @@
-/* Tool Card Styles */
+/* =============================================
+   Tool Card Styles (legacy - kept for compat)
+   ============================================= */
 .chat-tool-card {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -9,7 +11,6 @@
   transition:
     border-color 150ms ease-out,
     background 150ms ease-out;
-  /* Fixed max-height to ensure cards don't expand too much */
   max-height: 120px;
   overflow: hidden;
 }
@@ -19,7 +20,6 @@
   background: var(--bg-hover);
 }
 
-/* First tool card in a group - no top margin */
 .chat-tool-card:first-child {
   margin-top: 0;
 }
@@ -33,7 +33,6 @@
   outline-offset: 2px;
 }
 
-/* Header with title and chevron */
 .chat-tool-card__header {
   display: flex;
   justify-content: space-between;
@@ -69,7 +68,6 @@
   stroke-linejoin: round;
 }
 
-/* "View >" action link */
 .chat-tool-card__action {
   display: inline-flex;
   align-items: center;
@@ -94,7 +92,6 @@
   opacity: 1;
 }
 
-/* Status indicator for completed/empty results */
 .chat-tool-card__status {
   display: inline-flex;
   align-items: center;
@@ -122,7 +119,6 @@
   margin-top: 4px;
 }
 
-/* Collapsed preview - fixed height with truncation */
 .chat-tool-card__preview {
   font-size: 11px;
   color: var(--muted);
@@ -142,7 +138,6 @@
   border-color: var(--border-strong);
 }
 
-/* Short inline output */
 .chat-tool-card__inline {
   font-size: 11px;
   color: var(--text);
@@ -152,6 +147,217 @@
   border-radius: var(--radius-sm);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* =============================================
+   Tool Chevron (Collapsible <details>)
+   ============================================= */
+
+.tool-chevron {
+  margin-top: 6px;
+}
+
+.tool-chevron:first-child {
+  margin-top: 0;
+}
+
+.tool-chevron__summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease-out,
+    background 150ms ease-out;
+  user-select: none;
+  font-size: 12px;
+}
+
+.tool-chevron__summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-chevron__summary::marker {
+  content: "";
+}
+
+.tool-chevron__summary:hover {
+  border-color: rgba(20, 184, 166, 0.4);
+}
+
+.tool-chevron--running .tool-chevron__summary {
+  border-color: rgba(255, 92, 92, 0.4);
+}
+
+.tool-chevron__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tool-chevron__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tool-chevron__status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.tool-chevron__status-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool-chevron__status-icon--success {
+  color: var(--accent-2);
+}
+
+.tool-chevron__status-icon--error {
+  color: var(--danger);
+}
+
+.tool-chevron__status-icon--running {
+  color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tool-chevron__name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tool-chevron__detail {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.tool-chevron__badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tool-chevron__badge--success {
+  background: var(--accent-2-subtle);
+  color: var(--accent-2);
+  border: 1px solid rgba(20, 184, 166, 0.2);
+}
+
+.tool-chevron__badge--error {
+  background: var(--danger-subtle);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.tool-chevron__badge--running {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border: 1px solid rgba(255, 92, 92, 0.2);
+}
+
+.tool-chevron__view-btn {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: background 100ms ease;
+}
+
+.tool-chevron__view-btn:hover {
+  background: var(--accent-subtle);
+}
+
+.tool-chevron__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+  transition: transform 150ms ease;
+}
+
+.tool-chevron__arrow svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool-chevron[open] .tool-chevron__arrow {
+  transform: rotate(90deg);
+}
+
+.tool-chevron__body {
+  margin-top: 4px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.tool-chevron__output {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tool-chevron--running .tool-chevron__output {
+  color: var(--accent);
+  opacity: 0.9;
 }
 
 /* Reading Indicator */

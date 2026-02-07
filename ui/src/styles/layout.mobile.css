@@ -19,6 +19,16 @@
     display: none;
   }
 
+  /* Hide sidebar brand in horizontal nav mode */
+  .splinter-brand {
+    display: none;
+  }
+
+  /* Hide hamburger toggle - nav is always horizontal */
+  .topbar .nav-collapse-toggle.splinter-hamburger {
+    display: none;
+  }
+
   .nav-group {
     display: contents;
   }
@@ -51,14 +61,30 @@
     --shell-gap: 8px;
   }
 
-  /* Topbar */
+  /* Topbar - compact single row */
   .topbar {
-    padding: 10px 12px;
+    padding: 8px 12px;
     gap: 8px;
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: space-between;
     align-items: center;
+    height: auto;
+    min-height: 44px;
+  }
+
+  .topbar-left {
+    gap: 8px;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Hamburger smaller on mobile */
+  .topbar .nav-collapse-toggle {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
   }
 
   .brand {
@@ -74,10 +100,95 @@
     display: none;
   }
 
+  /* Channel indicator compact */
+  .splinter-channel-indicator {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .splinter-channel-indicator__name {
+    font-size: 12px;
+  }
+
+  /* Topbar status - compact row */
   .topbar-status {
     gap: 6px;
-    width: auto;
+    flex-shrink: 0;
     flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  /* Topbar context info - hide verbose items on mobile */
+  .topbar-context {
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .topbar-context__model {
+    font-size: 10px;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Hide text labels, keep meters + percentages */
+  .topbar-context__sep,
+  .topbar-context__label,
+  .topbar-context__detail,
+  .topbar-context__honey-storage {
+    display: none;
+  }
+
+  .topbar-context__meter {
+    width: 40px;
+  }
+
+  .topbar-context__pct {
+    font-size: 9px;
+  }
+
+  /* Splinter header controls - hide labels on mobile */
+  .splinter-header-btn__label {
+    display: none;
+  }
+
+  .splinter-header-btn {
+    padding: 5px 7px;
+  }
+
+  .splinter-header-btn__icon {
+    width: 13px;
+    height: 13px;
+  }
+
+  /* Status bar responsive */
+  .splinter-statusbar {
+    height: 24px;
+    padding: 0 10px;
+    font-size: 9px;
+  }
+
+  .splinter-statusbar__context-label,
+  .splinter-statusbar__context-detail {
+    display: none;
+  }
+
+  .splinter-statusbar__meter {
+    width: 48px;
+  }
+
+  .splinter-statusbar__session-id {
+    display: none;
+  }
+
+  .splinter-statusbar__honey {
+    font-size: 9px;
+  }
+
+  /* Sidebar brand compact on mobile (when visible) */
+  .splinter-brand__sub {
+    display: none;
   }
 
   .topbar-status .pill {
@@ -193,34 +304,19 @@
     font-size: 12px;
   }
 
-  /* Chat */
+  /* Chat header - hide on mobile (info is in topbar) */
   .chat-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+    display: none;
   }
 
-  .chat-header__left {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .chat-header__right {
-    justify-content: space-between;
-  }
-
-  .chat-session {
-    min-width: unset;
-    width: 100%;
-  }
-
+  /* Chat thread */
   .chat-thread {
-    margin-top: 8px;
-    padding: 12px 8px;
+    margin-top: 4px;
+    padding: 8px 6px;
   }
 
   .chat-msg {
-    max-width: 90%;
+    max-width: 92%;
   }
 
   .chat-bubble {
@@ -228,15 +324,142 @@
     border-radius: var(--radius-md);
   }
 
-  .chat-compose {
+  /* Chat groups - tighter spacing */
+  .chat-group {
     gap: 8px;
+    margin-bottom: 12px;
+    margin-left: 2px;
+    margin-right: 8px;
   }
 
-  .chat-compose__field textarea {
-    min-height: 60px;
+  .chat-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  img.chat-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .chat-group-messages {
+    max-width: calc(100% - 44px);
+  }
+
+  .chat-sender-name {
+    font-size: 11px;
+  }
+
+  .chat-group-timestamp {
+    font-size: 10px;
+  }
+
+  /* Compose bar - fixed at bottom */
+  .chat-compose {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    gap: 6px;
     padding: 8px 10px;
-    border-radius: var(--radius-md);
-    font-size: 14px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    margin: 0;
+  }
+
+  /* Toolbar compact */
+  .chat-toolbar {
+    padding: 2px 6px;
+    min-height: 24px;
+    gap: 2px;
+  }
+
+  .chat-toolbar__btn {
+    padding: 2px 6px;
+    font-size: 10px;
+    gap: 3px;
+  }
+
+  .chat-toolbar__btn svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .chat-compose__row {
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .chat-compose__input-wrap {
+    border-radius: 10px;
+    padding: 3px;
+  }
+
+  .chat-compose__textarea,
+  .chat-compose__input-wrap textarea {
+    min-height: 38px !important;
+    height: 38px;
+    max-height: 100px;
+    padding: 8px 10px;
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+
+  .chat-compose__inline-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .chat-compose__send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  /* Add padding to chat thread so content isn't hidden behind fixed compose */
+  .chat-thread {
+    padding-bottom: 210px !important;
+  }
+
+  /* Also add padding to the main content area for fixed compose */
+  .content--chat {
+    padding-bottom: 0 !important;
+  }
+
+  /* Hide keyboard shortcut hint on mobile */
+  .btn-kbd {
+    display: none;
+  }
+
+  /* Tools container */
+  .chat-compose__tools {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 2px !important;
+    flex-shrink: 0;
+  }
+
+  .chat-compose__mic,
+  .chat-compose__attach {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+  }
+
+  /* Action buttons */
+  .chat-compose__actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .chat-compose__actions .btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    width: 100%;
   }
 
   /* Log stream */
@@ -308,11 +531,29 @@
   }
 
   .topbar {
-    padding: 8px 10px;
+    padding: 6px 8px;
+    gap: 6px;
   }
 
   .brand-title {
     font-size: 13px;
+  }
+
+  /* Hide channel indicator text on very small screens */
+  .splinter-channel-indicator__name {
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Hide model name entirely, just show meters */
+  .topbar-context__model {
+    display: none;
+  }
+
+  .topbar-context__meter {
+    width: 32px;
   }
 
   .nav {
@@ -345,10 +586,9 @@
     padding: 8px 10px;
   }
 
-  .chat-compose__field textarea {
-    min-height: 52px;
-    padding: 8px 10px;
-    font-size: 13px;
+  .chat-compose__textarea,
+  .chat-compose__input-wrap textarea {
+    font-size: 16px;
   }
 
   .btn {
@@ -370,5 +610,22 @@
   .theme-icon {
     width: 11px;
     height: 11px;
+  }
+
+  /* Chat groups even tighter */
+  .chat-group {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .chat-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  img.chat-avatar {
+    width: 28px;
+    height: 28px;
   }
 }

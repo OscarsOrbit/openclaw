@@ -54,8 +54,9 @@ export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: 
   const hasText = Boolean(card.text?.trim());
 
   const canClick = Boolean(onOpenSidebar);
-  const handleClick = canClick
-    ? () => {
+  const handleSidebarClick = canClick
+    ? (e: Event) => {
+        e.stopPropagation();
         if (hasText) {
           onOpenSidebar!(formatToolOutputForSidebar(card.text!));
           return;
@@ -67,56 +68,68 @@ export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: 
       }
     : undefined;
 
-  const isShort = hasText && (card.text?.length ?? 0) <= TOOL_INLINE_THRESHOLD;
-  const showCollapsed = hasText && !isShort;
-  const showInline = hasText && isShort;
-  const isEmpty = !hasText;
+  // Tool calls in history are always completed — only the live tool stream shows "Processing"
+  const isRunning = false;
+  const isError =
+    hasText &&
+    (card.text?.toLowerCase().includes("error") || card.text?.toLowerCase().includes("failed"));
+
+  // Status badge
+  const statusBadge = isRunning
+    ? html`
+        <span class="tool-chevron__badge tool-chevron__badge--running">Processing...</span>
+      `
+    : isError
+      ? html`
+          <span class="tool-chevron__badge tool-chevron__badge--error">Error</span>
+        `
+      : html`
+          <span class="tool-chevron__badge tool-chevron__badge--success">Success</span>
+        `;
+
+  // Status icon
+  const statusIcon = isRunning
+    ? html`<span class="tool-chevron__status-icon tool-chevron__status-icon--running">${icons.loader}</span>`
+    : isError
+      ? html`<span class="tool-chevron__status-icon tool-chevron__status-icon--error">${icons.xCircle}</span>`
+      : html`<span class="tool-chevron__status-icon tool-chevron__status-icon--success">${icons.checkCircle}</span>`;
+
+  // Detail line for expanded view
+  const expandedContent = hasText
+    ? html`<div class="tool-chevron__output mono">${getTruncatedPreview(card.text!)}</div>`
+    : detail
+      ? html`<div class="tool-chevron__output mono">${detail}</div>`
+      : html`
+          <div class="tool-chevron__output muted">Completed — no output</div>
+        `;
 
   return html`
-    <div
-      class="chat-tool-card ${canClick ? "chat-tool-card--clickable" : ""}"
-      @click=${handleClick}
-      role=${canClick ? "button" : nothing}
-      tabindex=${canClick ? "0" : nothing}
-      @keydown=${
-        canClick
-          ? (e: KeyboardEvent) => {
-              if (e.key !== "Enter" && e.key !== " ") {
-                return;
-              }
-              e.preventDefault();
-              handleClick?.();
-            }
-          : nothing
-      }
-    >
-      <div class="chat-tool-card__header">
-        <div class="chat-tool-card__title">
-          <span class="chat-tool-card__icon">${icons[display.icon]}</span>
-          <span>${display.label}</span>
+    <details class="tool-chevron ${isRunning ? "tool-chevron--running" : ""}" ?open=${isRunning}>
+      <summary
+        class="tool-chevron__summary"
+        @click=${(e: Event) => {
+          // Allow default details toggle behavior
+        }}
+      >
+        <div class="tool-chevron__left">
+          ${statusIcon}
+          <span class="tool-chevron__name">${display.label}</span>
+          ${detail && !isRunning ? html`<span class="tool-chevron__detail">${detail}</span>` : nothing}
+          ${statusBadge}
         </div>
-        ${
-          canClick
-            ? html`<span class="chat-tool-card__action">${hasText ? "View" : ""} ${icons.check}</span>`
-            : nothing
-        }
-        ${isEmpty && !canClick ? html`<span class="chat-tool-card__status">${icons.check}</span>` : nothing}
+        <div class="tool-chevron__right">
+          ${
+            canClick && hasText
+              ? html`<button class="tool-chevron__view-btn" @click=${handleSidebarClick} title="View full output">View</button>`
+              : nothing
+          }
+          <span class="tool-chevron__arrow">${icons.chevronRight}</span>
+        </div>
+      </summary>
+      <div class="tool-chevron__body">
+        ${expandedContent}
       </div>
-      ${detail ? html`<div class="chat-tool-card__detail">${detail}</div>` : nothing}
-      ${
-        isEmpty
-          ? html`
-              <div class="chat-tool-card__status-text muted">Completed</div>
-            `
-          : nothing
-      }
-      ${
-        showCollapsed
-          ? html`<div class="chat-tool-card__preview mono">${getTruncatedPreview(card.text!)}</div>`
-          : nothing
-      }
-      ${showInline ? html`<div class="chat-tool-card__inline mono">${card.text}</div>` : nothing}
-    </div>
+    </details>
   `;
 }
 

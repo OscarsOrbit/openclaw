@@ -1,15 +1,31 @@
 import { html, nothing } from "lit";
-import type { AppViewState } from "./app-view-state.ts";
-import type { UsageState } from "./controllers/usage.ts";
+import type { AppViewState } from "./app-view-state";
+import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway";
+import type { UiSettings } from "./storage";
+import type { ThemeMode } from "./theme";
+import type { ThemeTransitionContext } from "./theme-transition";
+import type {
+  ConfigSnapshot,
+  CronJob,
+  CronRunLogEntry,
+  CronStatus,
+  HealthSnapshot,
+  LogEntry,
+  LogLevel,
+  PresenceEntry,
+  ChannelsStatusSnapshot,
+  SessionsListResult,
+  SkillStatusReport,
+  StatusSummary,
+} from "./types";
+import type { ChatQueueItem, CronFormState } from "./ui-types";
 import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
-import { refreshChatAvatar } from "./app-chat.ts";
-import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.helpers.ts";
-import { loadAgentFileContent, loadAgentFiles, saveAgentFile } from "./controllers/agent-files.ts";
-import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
-import { loadAgentSkills } from "./controllers/agent-skills.ts";
-import { loadAgents } from "./controllers/agents.ts";
-import { loadChannels } from "./controllers/channels.ts";
-import { loadChatHistory } from "./controllers/chat.ts";
+import { OpenClawApp } from "./app";
+import { refreshChatAvatar } from "./app-chat";
+import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.helpers";
+import { syncUrlWithSessionKey } from "./app-settings";
+import { loadChannels } from "./controllers/channels";
+import { ChatState, loadChatHistory } from "./controllers/chat";
 import {
   applyConfig,
   loadConfig,
@@ -17,66 +33,63 @@ import {
   saveConfig,
   updateConfigFormValue,
   removeConfigFormValue,
-} from "./controllers/config.ts";
+} from "./controllers/config";
 import {
   loadCronRuns,
   toggleCronJob,
   runCronJob,
   removeCronJob,
   addCronJob,
-} from "./controllers/cron.ts";
-import { loadDebug, callDebugMethod } from "./controllers/debug.ts";
+} from "./controllers/cron";
+import { loadDebug, callDebugMethod } from "./controllers/debug";
 import {
   approveDevicePairing,
   loadDevices,
   rejectDevicePairing,
   revokeDeviceToken,
   rotateDeviceToken,
-} from "./controllers/devices.ts";
+} from "./controllers/devices";
 import {
   loadExecApprovals,
   removeExecApprovalsFormValue,
   saveExecApprovals,
   updateExecApprovalsFormValue,
-} from "./controllers/exec-approvals.ts";
-import { loadLogs } from "./controllers/logs.ts";
-import { loadNodes } from "./controllers/nodes.ts";
-import { loadPresence } from "./controllers/presence.ts";
-import { deleteSession, loadSessions, patchSession } from "./controllers/sessions.ts";
+} from "./controllers/exec-approvals";
+import { loadLogs } from "./controllers/logs";
+import { loadNodes } from "./controllers/nodes";
+import { loadPresence } from "./controllers/presence";
+import { deleteSession, loadSessions, patchSession } from "./controllers/sessions";
 import {
   installSkill,
   loadSkills,
   saveSkillApiKey,
   updateSkillEdit,
   updateSkillEnabled,
-} from "./controllers/skills.ts";
-import { loadUsage, loadSessionTimeSeries, loadSessionLogs } from "./controllers/usage.ts";
-import { icons } from "./icons.ts";
-import { normalizeBasePath, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
-
-// Module-scope debounce for usage date changes (avoids type-unsafe hacks on state object)
-let usageDateDebounceTimeout: number | null = null;
-const debouncedLoadUsage = (state: UsageState) => {
-  if (usageDateDebounceTimeout) {
-    clearTimeout(usageDateDebounceTimeout);
-  }
-  usageDateDebounceTimeout = window.setTimeout(() => void loadUsage(state), 400);
-};
-import { renderAgents } from "./views/agents.ts";
-import { renderChannels } from "./views/channels.ts";
-import { renderChat } from "./views/chat.ts";
-import { renderConfig } from "./views/config.ts";
-import { renderCron } from "./views/cron.ts";
-import { renderDebug } from "./views/debug.ts";
-import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
-import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
-import { renderInstances } from "./views/instances.ts";
-import { renderLogs } from "./views/logs.ts";
-import { renderNodes } from "./views/nodes.ts";
-import { renderOverview } from "./views/overview.ts";
-import { renderSessions } from "./views/sessions.ts";
-import { renderSkills } from "./views/skills.ts";
-import { renderUsage } from "./views/usage.ts";
+  type SkillMessage,
+} from "./controllers/skills";
+import { icons } from "./icons";
+import {
+  TAB_GROUPS,
+  iconForTab,
+  pathForTab,
+  subtitleForTab,
+  titleForTab,
+  type Tab,
+} from "./navigation";
+import { humanizeSessionKey } from "./session-humanize";
+import { renderChannels } from "./views/channels";
+import { renderChat } from "./views/chat";
+import { renderConfig } from "./views/config";
+import { renderCron } from "./views/cron";
+import { renderDebug } from "./views/debug";
+import { renderExecApprovalPrompt } from "./views/exec-approval";
+import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation";
+import { renderInstances } from "./views/instances";
+import { renderLogs } from "./views/logs";
+import { renderNodes } from "./views/nodes";
+import { renderOverview } from "./views/overview";
+import { renderSessions } from "./views/sessions";
+import { renderSkills } from "./views/skills";
 
 const AVATAR_DATA_RE = /^data:/i;
 const AVATAR_HTTP_RE = /^https?:\/\//i;
@@ -88,12 +101,8 @@ function resolveAssistantAvatarUrl(state: AppViewState): string | undefined {
   const agent = list.find((entry) => entry.id === agentId);
   const identity = agent?.identity;
   const candidate = identity?.avatarUrl ?? identity?.avatar;
-  if (!candidate) {
-    return undefined;
-  }
-  if (AVATAR_DATA_RE.test(candidate) || AVATAR_HTTP_RE.test(candidate)) {
-    return candidate;
-  }
+  if (!candidate) return undefined;
+  if (AVATAR_DATA_RE.test(candidate) || AVATAR_HTTP_RE.test(candidate)) return candidate;
   return identity?.avatarUrl;
 }
 
@@ -107,21 +116,20 @@ export function renderApp(state: AppViewState) {
   const showThinking = state.onboarding ? false : state.settings.chatShowThinking;
   const assistantAvatarUrl = resolveAssistantAvatarUrl(state);
   const chatAvatarUrl = state.chatAvatarUrl ?? assistantAvatarUrl ?? null;
-  const configValue =
-    state.configForm ?? (state.configSnapshot?.config as Record<string, unknown> | null);
-  const basePath = normalizeBasePath(state.basePath ?? "");
-  const resolvedAgentId =
-    state.agentsSelectedId ??
-    state.agentsList?.defaultId ??
-    state.agentsList?.agents?.[0]?.id ??
-    null;
+
+  // Status bar data
+  const modelName = resolveModelName(state);
+  const contextInfo = resolveContextInfo(state);
+  const honeyInfo = resolveHoneyInfo(state);
+  const sessionShort =
+    state.sessionKey.length > 12 ? `SP-${state.sessionKey.slice(-5)}` : state.sessionKey;
 
   return html`
     <div class="shell ${isChat ? "shell--chat" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${state.settings.navCollapsed ? "shell--nav-collapsed" : ""} ${state.onboarding ? "shell--onboarding" : ""}">
       <header class="topbar">
         <div class="topbar-left">
           <button
-            class="nav-collapse-toggle"
+            class="nav-collapse-toggle splinter-hamburger"
             @click=${() =>
               state.applySettings({
                 ...state.settings,
@@ -132,26 +140,48 @@ export function renderApp(state: AppViewState) {
           >
             <span class="nav-collapse-toggle__icon">${icons.menu}</span>
           </button>
-          <div class="brand">
-            <div class="brand-logo">
-              <img src=${basePath ? `${basePath}/favicon.svg` : "/favicon.svg"} alt="OpenClaw" />
-            </div>
-            <div class="brand-text">
-              <div class="brand-title">OPENCLAW</div>
-              <div class="brand-sub">Gateway Dashboard</div>
-            </div>
-          </div>
+          ${
+            isChat
+              ? renderChatChannelIndicator(state)
+              : html`
+                  <div class="brand">
+                    <div class="brand-text">
+                      <div class="brand-title">SPLINTER</div>
+                      <div class="brand-sub">Gateway Dashboard</div>
+                    </div>
+                  </div>
+                `
+          }
         </div>
         <div class="topbar-status">
-          <div class="pill">
-            <span class="statusDot ${state.connected ? "ok" : ""}"></span>
-            <span>Health</span>
-            <span class="mono">${state.connected ? "OK" : "Offline"}</span>
-          </div>
-          ${renderThemeToggle(state)}
+          ${
+            isChat
+              ? html`
+            ${renderTopbarStatus(state)}
+            ${renderHeaderControls(state)}
+          `
+              : html`
+            <div class="pill">
+              <span class="statusDot ${state.connected ? "ok" : ""}"></span>
+              <span>Health</span>
+              <span class="mono">${state.connected ? "OK" : "Offline"}</span>
+            </div>
+          `
+          }
+          ${isChat ? nothing : renderThemeToggle(state)}
         </div>
       </header>
       <aside class="nav ${state.settings.navCollapsed ? "nav--collapsed" : ""}">
+        <div class="splinter-brand">
+          <div class="splinter-brand__logo">
+            <img src="https://brand-assets.unrealagent.ai/splinter/splinter-logo.svg" alt="Splinter" />
+          </div>
+          <div class="splinter-brand__text">
+            <div class="splinter-brand__name">Splinter</div>
+            <div class="splinter-brand__sub">${modelName} · 1M context</div>
+          </div>
+        </div>
+        ${renderSidebarChannels(state)}
         ${TAB_GROUPS.map((group) => {
           const isGroupCollapsed = state.settings.navGroupsCollapsed[group.label] ?? false;
           const hasActiveTab = group.tabs.some((tab) => tab === state.tab);
@@ -197,16 +227,28 @@ export function renderApp(state: AppViewState) {
         </div>
       </aside>
       <main class="content ${isChat ? "content--chat" : ""}">
-        <section class="content-header">
-          <div>
-            ${state.tab === "usage" ? nothing : html`<div class="page-title">${titleForTab(state.tab)}</div>`}
-            ${state.tab === "usage" ? nothing : html`<div class="page-sub">${subtitleForTab(state.tab)}</div>`}
-          </div>
-          <div class="page-meta">
-            ${state.lastError ? html`<div class="pill danger">${state.lastError}</div>` : nothing}
-            ${isChat ? renderChatControls(state) : nothing}
-          </div>
-        </section>
+        ${
+          isChat
+            ? html`
+          <section class="content-header content-header--chat">
+            <div class="page-meta">
+              ${state.lastError ? html`<div class="pill danger">${state.lastError}</div>` : nothing}
+              ${renderChatControls(state)}
+            </div>
+          </section>
+        `
+            : html`
+          <section class="content-header">
+            <div>
+              <div class="page-title">${titleForTab(state.tab)}</div>
+              <div class="page-sub">${subtitleForTab(state.tab)}</div>
+            </div>
+            <div class="page-meta">
+              ${state.lastError ? html`<div class="pill danger">${state.lastError}</div>` : nothing}
+            </div>
+          </section>
+        `
+        }
 
         ${
           state.tab === "overview"
@@ -316,269 +358,6 @@ export function renderApp(state: AppViewState) {
         }
 
         ${
-          state.tab === "usage"
-            ? renderUsage({
-                loading: state.usageLoading,
-                error: state.usageError,
-                startDate: state.usageStartDate,
-                endDate: state.usageEndDate,
-                sessions: state.usageResult?.sessions ?? [],
-                sessionsLimitReached: (state.usageResult?.sessions?.length ?? 0) >= 1000,
-                totals: state.usageResult?.totals ?? null,
-                aggregates: state.usageResult?.aggregates ?? null,
-                costDaily: state.usageCostSummary?.daily ?? [],
-                selectedSessions: state.usageSelectedSessions,
-                selectedDays: state.usageSelectedDays,
-                selectedHours: state.usageSelectedHours,
-                chartMode: state.usageChartMode,
-                dailyChartMode: state.usageDailyChartMode,
-                timeSeriesMode: state.usageTimeSeriesMode,
-                timeSeriesBreakdownMode: state.usageTimeSeriesBreakdownMode,
-                timeSeries: state.usageTimeSeries,
-                timeSeriesLoading: state.usageTimeSeriesLoading,
-                sessionLogs: state.usageSessionLogs,
-                sessionLogsLoading: state.usageSessionLogsLoading,
-                sessionLogsExpanded: state.usageSessionLogsExpanded,
-                logFilterRoles: state.usageLogFilterRoles,
-                logFilterTools: state.usageLogFilterTools,
-                logFilterHasTools: state.usageLogFilterHasTools,
-                logFilterQuery: state.usageLogFilterQuery,
-                query: state.usageQuery,
-                queryDraft: state.usageQueryDraft,
-                sessionSort: state.usageSessionSort,
-                sessionSortDir: state.usageSessionSortDir,
-                recentSessions: state.usageRecentSessions,
-                sessionsTab: state.usageSessionsTab,
-                visibleColumns:
-                  state.usageVisibleColumns as import("./views/usage.ts").UsageColumnId[],
-                timeZone: state.usageTimeZone,
-                contextExpanded: state.usageContextExpanded,
-                headerPinned: state.usageHeaderPinned,
-                onStartDateChange: (date) => {
-                  state.usageStartDate = date;
-                  state.usageSelectedDays = [];
-                  state.usageSelectedHours = [];
-                  state.usageSelectedSessions = [];
-                  debouncedLoadUsage(state);
-                },
-                onEndDateChange: (date) => {
-                  state.usageEndDate = date;
-                  state.usageSelectedDays = [];
-                  state.usageSelectedHours = [];
-                  state.usageSelectedSessions = [];
-                  debouncedLoadUsage(state);
-                },
-                onRefresh: () => loadUsage(state),
-                onTimeZoneChange: (zone) => {
-                  state.usageTimeZone = zone;
-                },
-                onToggleContextExpanded: () => {
-                  state.usageContextExpanded = !state.usageContextExpanded;
-                },
-                onToggleSessionLogsExpanded: () => {
-                  state.usageSessionLogsExpanded = !state.usageSessionLogsExpanded;
-                },
-                onLogFilterRolesChange: (next) => {
-                  state.usageLogFilterRoles = next;
-                },
-                onLogFilterToolsChange: (next) => {
-                  state.usageLogFilterTools = next;
-                },
-                onLogFilterHasToolsChange: (next) => {
-                  state.usageLogFilterHasTools = next;
-                },
-                onLogFilterQueryChange: (next) => {
-                  state.usageLogFilterQuery = next;
-                },
-                onLogFilterClear: () => {
-                  state.usageLogFilterRoles = [];
-                  state.usageLogFilterTools = [];
-                  state.usageLogFilterHasTools = false;
-                  state.usageLogFilterQuery = "";
-                },
-                onToggleHeaderPinned: () => {
-                  state.usageHeaderPinned = !state.usageHeaderPinned;
-                },
-                onSelectHour: (hour, shiftKey) => {
-                  if (shiftKey && state.usageSelectedHours.length > 0) {
-                    const allHours = Array.from({ length: 24 }, (_, i) => i);
-                    const lastSelected =
-                      state.usageSelectedHours[state.usageSelectedHours.length - 1];
-                    const lastIdx = allHours.indexOf(lastSelected);
-                    const thisIdx = allHours.indexOf(hour);
-                    if (lastIdx !== -1 && thisIdx !== -1) {
-                      const [start, end] =
-                        lastIdx < thisIdx ? [lastIdx, thisIdx] : [thisIdx, lastIdx];
-                      const range = allHours.slice(start, end + 1);
-                      state.usageSelectedHours = [
-                        ...new Set([...state.usageSelectedHours, ...range]),
-                      ];
-                    }
-                  } else {
-                    if (state.usageSelectedHours.includes(hour)) {
-                      state.usageSelectedHours = state.usageSelectedHours.filter((h) => h !== hour);
-                    } else {
-                      state.usageSelectedHours = [...state.usageSelectedHours, hour];
-                    }
-                  }
-                },
-                onQueryDraftChange: (query) => {
-                  state.usageQueryDraft = query;
-                  if (state.usageQueryDebounceTimer) {
-                    window.clearTimeout(state.usageQueryDebounceTimer);
-                  }
-                  state.usageQueryDebounceTimer = window.setTimeout(() => {
-                    state.usageQuery = state.usageQueryDraft;
-                    state.usageQueryDebounceTimer = null;
-                  }, 250);
-                },
-                onApplyQuery: () => {
-                  if (state.usageQueryDebounceTimer) {
-                    window.clearTimeout(state.usageQueryDebounceTimer);
-                    state.usageQueryDebounceTimer = null;
-                  }
-                  state.usageQuery = state.usageQueryDraft;
-                },
-                onClearQuery: () => {
-                  if (state.usageQueryDebounceTimer) {
-                    window.clearTimeout(state.usageQueryDebounceTimer);
-                    state.usageQueryDebounceTimer = null;
-                  }
-                  state.usageQueryDraft = "";
-                  state.usageQuery = "";
-                },
-                onSessionSortChange: (sort) => {
-                  state.usageSessionSort = sort;
-                },
-                onSessionSortDirChange: (dir) => {
-                  state.usageSessionSortDir = dir;
-                },
-                onSessionsTabChange: (tab) => {
-                  state.usageSessionsTab = tab;
-                },
-                onToggleColumn: (column) => {
-                  if (state.usageVisibleColumns.includes(column)) {
-                    state.usageVisibleColumns = state.usageVisibleColumns.filter(
-                      (entry) => entry !== column,
-                    );
-                  } else {
-                    state.usageVisibleColumns = [...state.usageVisibleColumns, column];
-                  }
-                },
-                onSelectSession: (key, shiftKey) => {
-                  state.usageTimeSeries = null;
-                  state.usageSessionLogs = null;
-                  state.usageRecentSessions = [
-                    key,
-                    ...state.usageRecentSessions.filter((entry) => entry !== key),
-                  ].slice(0, 8);
-
-                  if (shiftKey && state.usageSelectedSessions.length > 0) {
-                    // Shift-click: select range from last selected to this session
-                    // Sort sessions same way as displayed (by tokens or cost descending)
-                    const isTokenMode = state.usageChartMode === "tokens";
-                    const sortedSessions = [...(state.usageResult?.sessions ?? [])].toSorted(
-                      (a, b) => {
-                        const valA = isTokenMode
-                          ? (a.usage?.totalTokens ?? 0)
-                          : (a.usage?.totalCost ?? 0);
-                        const valB = isTokenMode
-                          ? (b.usage?.totalTokens ?? 0)
-                          : (b.usage?.totalCost ?? 0);
-                        return valB - valA;
-                      },
-                    );
-                    const allKeys = sortedSessions.map((s) => s.key);
-                    const lastSelected =
-                      state.usageSelectedSessions[state.usageSelectedSessions.length - 1];
-                    const lastIdx = allKeys.indexOf(lastSelected);
-                    const thisIdx = allKeys.indexOf(key);
-                    if (lastIdx !== -1 && thisIdx !== -1) {
-                      const [start, end] =
-                        lastIdx < thisIdx ? [lastIdx, thisIdx] : [thisIdx, lastIdx];
-                      const range = allKeys.slice(start, end + 1);
-                      const newSelection = [...new Set([...state.usageSelectedSessions, ...range])];
-                      state.usageSelectedSessions = newSelection;
-                    }
-                  } else {
-                    // Regular click: focus a single session (so details always open).
-                    // Click the focused session again to clear selection.
-                    if (
-                      state.usageSelectedSessions.length === 1 &&
-                      state.usageSelectedSessions[0] === key
-                    ) {
-                      state.usageSelectedSessions = [];
-                    } else {
-                      state.usageSelectedSessions = [key];
-                    }
-                  }
-
-                  // Load timeseries/logs only if exactly one session selected
-                  if (state.usageSelectedSessions.length === 1) {
-                    void loadSessionTimeSeries(state, state.usageSelectedSessions[0]);
-                    void loadSessionLogs(state, state.usageSelectedSessions[0]);
-                  }
-                },
-                onSelectDay: (day, shiftKey) => {
-                  if (shiftKey && state.usageSelectedDays.length > 0) {
-                    // Shift-click: select range from last selected to this day
-                    const allDays = (state.usageCostSummary?.daily ?? []).map((d) => d.date);
-                    const lastSelected =
-                      state.usageSelectedDays[state.usageSelectedDays.length - 1];
-                    const lastIdx = allDays.indexOf(lastSelected);
-                    const thisIdx = allDays.indexOf(day);
-                    if (lastIdx !== -1 && thisIdx !== -1) {
-                      const [start, end] =
-                        lastIdx < thisIdx ? [lastIdx, thisIdx] : [thisIdx, lastIdx];
-                      const range = allDays.slice(start, end + 1);
-                      // Merge with existing selection
-                      const newSelection = [...new Set([...state.usageSelectedDays, ...range])];
-                      state.usageSelectedDays = newSelection;
-                    }
-                  } else {
-                    // Regular click: toggle single day
-                    if (state.usageSelectedDays.includes(day)) {
-                      state.usageSelectedDays = state.usageSelectedDays.filter((d) => d !== day);
-                    } else {
-                      state.usageSelectedDays = [day];
-                    }
-                  }
-                },
-                onChartModeChange: (mode) => {
-                  state.usageChartMode = mode;
-                },
-                onDailyChartModeChange: (mode) => {
-                  state.usageDailyChartMode = mode;
-                },
-                onTimeSeriesModeChange: (mode) => {
-                  state.usageTimeSeriesMode = mode;
-                },
-                onTimeSeriesBreakdownChange: (mode) => {
-                  state.usageTimeSeriesBreakdownMode = mode;
-                },
-                onClearDays: () => {
-                  state.usageSelectedDays = [];
-                },
-                onClearHours: () => {
-                  state.usageSelectedHours = [];
-                },
-                onClearSessions: () => {
-                  state.usageSelectedSessions = [];
-                  state.usageTimeSeries = null;
-                  state.usageSessionLogs = null;
-                },
-                onClearFilters: () => {
-                  state.usageSelectedDays = [];
-                  state.usageSelectedHours = [];
-                  state.usageSelectedSessions = [];
-                  state.usageTimeSeries = null;
-                  state.usageSessionLogs = null;
-                },
-              })
-            : nothing
-        }
-
-        ${
           state.tab === "cron"
             ? renderCron({
                 loading: state.cronLoading,
@@ -601,352 +380,6 @@ export function renderApp(state: AppViewState) {
                 onRun: (job) => runCronJob(state, job),
                 onRemove: (job) => removeCronJob(state, job),
                 onLoadRuns: (jobId) => loadCronRuns(state, jobId),
-              })
-            : nothing
-        }
-
-        ${
-          state.tab === "agents"
-            ? renderAgents({
-                loading: state.agentsLoading,
-                error: state.agentsError,
-                agentsList: state.agentsList,
-                selectedAgentId: resolvedAgentId,
-                activePanel: state.agentsPanel,
-                configForm: configValue,
-                configLoading: state.configLoading,
-                configSaving: state.configSaving,
-                configDirty: state.configFormDirty,
-                channelsLoading: state.channelsLoading,
-                channelsError: state.channelsError,
-                channelsSnapshot: state.channelsSnapshot,
-                channelsLastSuccess: state.channelsLastSuccess,
-                cronLoading: state.cronLoading,
-                cronStatus: state.cronStatus,
-                cronJobs: state.cronJobs,
-                cronError: state.cronError,
-                agentFilesLoading: state.agentFilesLoading,
-                agentFilesError: state.agentFilesError,
-                agentFilesList: state.agentFilesList,
-                agentFileActive: state.agentFileActive,
-                agentFileContents: state.agentFileContents,
-                agentFileDrafts: state.agentFileDrafts,
-                agentFileSaving: state.agentFileSaving,
-                agentIdentityLoading: state.agentIdentityLoading,
-                agentIdentityError: state.agentIdentityError,
-                agentIdentityById: state.agentIdentityById,
-                agentSkillsLoading: state.agentSkillsLoading,
-                agentSkillsReport: state.agentSkillsReport,
-                agentSkillsError: state.agentSkillsError,
-                agentSkillsAgentId: state.agentSkillsAgentId,
-                skillsFilter: state.skillsFilter,
-                onRefresh: async () => {
-                  await loadAgents(state);
-                  const agentIds = state.agentsList?.agents?.map((entry) => entry.id) ?? [];
-                  if (agentIds.length > 0) {
-                    void loadAgentIdentities(state, agentIds);
-                  }
-                },
-                onSelectAgent: (agentId) => {
-                  if (state.agentsSelectedId === agentId) {
-                    return;
-                  }
-                  state.agentsSelectedId = agentId;
-                  state.agentFilesList = null;
-                  state.agentFilesError = null;
-                  state.agentFilesLoading = false;
-                  state.agentFileActive = null;
-                  state.agentFileContents = {};
-                  state.agentFileDrafts = {};
-                  state.agentSkillsReport = null;
-                  state.agentSkillsError = null;
-                  state.agentSkillsAgentId = null;
-                  void loadAgentIdentity(state, agentId);
-                  if (state.agentsPanel === "files") {
-                    void loadAgentFiles(state, agentId);
-                  }
-                  if (state.agentsPanel === "skills") {
-                    void loadAgentSkills(state, agentId);
-                  }
-                },
-                onSelectPanel: (panel) => {
-                  state.agentsPanel = panel;
-                  if (panel === "files" && resolvedAgentId) {
-                    if (state.agentFilesList?.agentId !== resolvedAgentId) {
-                      state.agentFilesList = null;
-                      state.agentFilesError = null;
-                      state.agentFileActive = null;
-                      state.agentFileContents = {};
-                      state.agentFileDrafts = {};
-                      void loadAgentFiles(state, resolvedAgentId);
-                    }
-                  }
-                  if (panel === "skills") {
-                    if (resolvedAgentId) {
-                      void loadAgentSkills(state, resolvedAgentId);
-                    }
-                  }
-                  if (panel === "channels") {
-                    void loadChannels(state, false);
-                  }
-                  if (panel === "cron") {
-                    void state.loadCron();
-                  }
-                },
-                onLoadFiles: (agentId) => loadAgentFiles(state, agentId),
-                onSelectFile: (name) => {
-                  state.agentFileActive = name;
-                  if (!resolvedAgentId) {
-                    return;
-                  }
-                  void loadAgentFileContent(state, resolvedAgentId, name);
-                },
-                onFileDraftChange: (name, content) => {
-                  state.agentFileDrafts = { ...state.agentFileDrafts, [name]: content };
-                },
-                onFileReset: (name) => {
-                  const base = state.agentFileContents[name] ?? "";
-                  state.agentFileDrafts = { ...state.agentFileDrafts, [name]: base };
-                },
-                onFileSave: (name) => {
-                  if (!resolvedAgentId) {
-                    return;
-                  }
-                  const content =
-                    state.agentFileDrafts[name] ?? state.agentFileContents[name] ?? "";
-                  void saveAgentFile(state, resolvedAgentId, name, content);
-                },
-                onToolsProfileChange: (agentId, profile, clearAllow) => {
-                  if (!configValue) {
-                    return;
-                  }
-                  const list = (configValue as { agents?: { list?: unknown[] } }).agents?.list;
-                  if (!Array.isArray(list)) {
-                    return;
-                  }
-                  const index = list.findIndex(
-                    (entry) =>
-                      entry &&
-                      typeof entry === "object" &&
-                      "id" in entry &&
-                      (entry as { id?: string }).id === agentId,
-                  );
-                  if (index < 0) {
-                    return;
-                  }
-                  const basePath = ["agents", "list", index, "tools"];
-                  if (profile) {
-                    updateConfigFormValue(state, [...basePath, "profile"], profile);
-                  } else {
-                    removeConfigFormValue(state, [...basePath, "profile"]);
-                  }
-                  if (clearAllow) {
-                    removeConfigFormValue(state, [...basePath, "allow"]);
-                  }
-                },
-                onToolsOverridesChange: (agentId, alsoAllow, deny) => {
-                  if (!configValue) {
-                    return;
-                  }
-                  const list = (configValue as { agents?: { list?: unknown[] } }).agents?.list;
-                  if (!Array.isArray(list)) {
-                    return;
-                  }
-                  const index = list.findIndex(
-                    (entry) =>
-                      entry &&
-                      typeof entry === "object" &&
-                      "id" in entry &&
-                      (entry as { id?: string }).id === agentId,
-                  );
-                  if (index < 0) {
-                    return;
-                  }
-                  const basePath = ["agents", "list", index, "tools"];
-                  if (alsoAllow.length > 0) {
-                    updateConfigFormValue(state, [...basePath, "alsoAllow"], alsoAllow);
-                  } else {
-                    removeConfigFormValue(state, [...basePath, "alsoAllow"]);
-                  }
-                  if (deny.length > 0) {
-                    updateConfigFormValue(state, [...basePath, "deny"], deny);
-                  } else {
-                    removeConfigFormValue(state, [...basePath, "deny"]);
-                  }
-                },
-                onConfigReload: () => loadConfig(state),
-                onConfigSave: () => saveConfig(state),
-                onChannelsRefresh: () => loadChannels(state, false),
-                onCronRefresh: () => state.loadCron(),
-                onSkillsFilterChange: (next) => (state.skillsFilter = next),
-                onSkillsRefresh: () => {
-                  if (resolvedAgentId) {
-                    void loadAgentSkills(state, resolvedAgentId);
-                  }
-                },
-                onAgentSkillToggle: (agentId, skillName, enabled) => {
-                  if (!configValue) {
-                    return;
-                  }
-                  const list = (configValue as { agents?: { list?: unknown[] } }).agents?.list;
-                  if (!Array.isArray(list)) {
-                    return;
-                  }
-                  const index = list.findIndex(
-                    (entry) =>
-                      entry &&
-                      typeof entry === "object" &&
-                      "id" in entry &&
-                      (entry as { id?: string }).id === agentId,
-                  );
-                  if (index < 0) {
-                    return;
-                  }
-                  const entry = list[index] as { skills?: unknown };
-                  const normalizedSkill = skillName.trim();
-                  if (!normalizedSkill) {
-                    return;
-                  }
-                  const allSkills =
-                    state.agentSkillsReport?.skills?.map((skill) => skill.name).filter(Boolean) ??
-                    [];
-                  const existing = Array.isArray(entry.skills)
-                    ? entry.skills.map((name) => String(name).trim()).filter(Boolean)
-                    : undefined;
-                  const base = existing ?? allSkills;
-                  const next = new Set(base);
-                  if (enabled) {
-                    next.add(normalizedSkill);
-                  } else {
-                    next.delete(normalizedSkill);
-                  }
-                  updateConfigFormValue(state, ["agents", "list", index, "skills"], [...next]);
-                },
-                onAgentSkillsClear: (agentId) => {
-                  if (!configValue) {
-                    return;
-                  }
-                  const list = (configValue as { agents?: { list?: unknown[] } }).agents?.list;
-                  if (!Array.isArray(list)) {
-                    return;
-                  }
-                  const index = list.findIndex(
-                    (entry) =>
-                      entry &&
-                      typeof entry === "object" &&
-                      "id" in entry &&
-                      (entry as { id?: string }).id === agentId,
-                  );
-                  if (index < 0) {
-                    return;
-                  }
-                  removeConfigFormValue(state, ["agents", "list", index, "skills"]);
-                },
-                onAgentSkillsDisableAll: (agentId) => {
-                  if (!configValue) {
-                    return;
-                  }
-                  const list = (configValue as { agents?: { list?: unknown[] } }).agents?.list;
-                  if (!Array.isArray(list)) {
-                    return;
-                  }
-                  const index = list.findIndex(
-                    (entry) =>
-                      entry &&
-                      typeof entry === "object" &&
-                      "id" in entry &&
-                      (entry as { id?: string }).id === agentId,
-                  );
-                  if (index < 0) {
-                    return;
-                  }
-                  updateConfigFormValue(state, ["agents", "list", index, "skills"], []);
-                },
-                onModelChange: (agentId, modelId) => {
-                  if (!configValue) {
-                    return;
-                  }
-                  const list = (configValue as { agents?: { list?: unknown[] } }).agents?.list;
-                  if (!Array.isArray(list)) {
-                    return;
-                  }
-                  const index = list.findIndex(
-                    (entry) =>
-                      entry &&
-                      typeof entry === "object" &&
-                      "id" in entry &&
-                      (entry as { id?: string }).id === agentId,
-                  );
-                  if (index < 0) {
-                    return;
-                  }
-                  const basePath = ["agents", "list", index, "model"];
-                  if (!modelId) {
-                    removeConfigFormValue(state, basePath);
-                    return;
-                  }
-                  const entry = list[index] as { model?: unknown };
-                  const existing = entry?.model;
-                  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
-                    const fallbacks = (existing as { fallbacks?: unknown }).fallbacks;
-                    const next = {
-                      primary: modelId,
-                      ...(Array.isArray(fallbacks) ? { fallbacks } : {}),
-                    };
-                    updateConfigFormValue(state, basePath, next);
-                  } else {
-                    updateConfigFormValue(state, basePath, modelId);
-                  }
-                },
-                onModelFallbacksChange: (agentId, fallbacks) => {
-                  if (!configValue) {
-                    return;
-                  }
-                  const list = (configValue as { agents?: { list?: unknown[] } }).agents?.list;
-                  if (!Array.isArray(list)) {
-                    return;
-                  }
-                  const index = list.findIndex(
-                    (entry) =>
-                      entry &&
-                      typeof entry === "object" &&
-                      "id" in entry &&
-                      (entry as { id?: string }).id === agentId,
-                  );
-                  if (index < 0) {
-                    return;
-                  }
-                  const basePath = ["agents", "list", index, "model"];
-                  const entry = list[index] as { model?: unknown };
-                  const normalized = fallbacks.map((name) => name.trim()).filter(Boolean);
-                  const existing = entry.model;
-                  const resolvePrimary = () => {
-                    if (typeof existing === "string") {
-                      return existing.trim() || null;
-                    }
-                    if (existing && typeof existing === "object" && !Array.isArray(existing)) {
-                      const primary = (existing as { primary?: unknown }).primary;
-                      if (typeof primary === "string") {
-                        const trimmed = primary.trim();
-                        return trimmed || null;
-                      }
-                    }
-                    return null;
-                  };
-                  const primary = resolvePrimary();
-                  if (normalized.length === 0) {
-                    if (primary) {
-                      updateConfigFormValue(state, basePath, primary);
-                    } else {
-                      removeConfigFormValue(state, basePath);
-                    }
-                    return;
-                  }
-                  const next = primary
-                    ? { primary, fallbacks: normalized }
-                    : { fallbacks: normalized };
-                  updateConfigFormValue(state, basePath, next);
-                },
               })
             : nothing
         }
@@ -1097,9 +530,7 @@ export function renderApp(state: AppViewState) {
                   return Promise.all([loadChatHistory(state), refreshChatAvatar(state)]);
                 },
                 onToggleFocusMode: () => {
-                  if (state.onboarding) {
-                    return;
-                  }
+                  if (state.onboarding) return;
                   state.applySettings({
                     ...state.settings,
                     chatFocusMode: !state.settings.chatFocusMode,
@@ -1114,8 +545,14 @@ export function renderApp(state: AppViewState) {
                 onAbort: () => void state.handleAbortChat(),
                 onQueueRemove: (id) => state.removeQueuedMessage(id),
                 onNewSession: () => state.handleSendChat("/new", { restoreDraft: true }),
-                showNewMessages: state.chatNewMessagesBelow,
-                onScrollToBottom: () => state.scrollToBottom(),
+                onCompact: () => state.handleSendChat("/compact"),
+                onRestart: () => state.handleSendChat("/restart"),
+                toolbarExpanded: (state as any).chatToolbarExpanded !== false,
+                onToggleToolbar: () => {
+                  const cur = (state as any).chatToolbarExpanded !== false;
+                  (state as any).chatToolbarExpanded = !cur;
+                  state.requestUpdate();
+                },
                 // Sidebar props for tool output viewing
                 sidebarOpen: state.sidebarOpen,
                 sidebarContent: state.sidebarContent,
@@ -1126,6 +563,11 @@ export function renderApp(state: AppViewState) {
                 onSplitRatioChange: (ratio: number) => state.handleSplitRatioChange(ratio),
                 assistantName: state.assistantName,
                 assistantAvatar: state.assistantAvatar,
+                // Voice input
+                isListening: state.chatVoiceListening,
+                onVoiceToggle: state.chatVoiceSupported
+                  ? () => state.handleVoiceToggle()
+                  : undefined,
               })
             : nothing
         }
@@ -1214,8 +656,339 @@ export function renderApp(state: AppViewState) {
             : nothing
         }
       </main>
+      ${
+        isChat
+          ? nothing
+          : html`
+        <div class="splinter-statusbar">
+          <div class="splinter-statusbar__left">
+            <span class="splinter-statusbar__model">
+              <span class="splinter-statusbar__dot ${state.connected ? "splinter-statusbar__dot--ok" : ""}"></span>
+              <span>🧠 ${modelName}</span>
+            </span>
+            <span class="splinter-statusbar__context">
+              <span class="splinter-statusbar__context-label">Context:</span>
+              <span class="splinter-statusbar__meter">
+                <span class="splinter-statusbar__meter-fill ${contextInfo.colorClass}" style="width: ${contextInfo.percent}%"></span>
+              </span>
+              <span class="splinter-statusbar__context-pct ${contextInfo.colorClass}">${contextInfo.percent}%</span>
+              <span class="splinter-statusbar__context-detail">(${contextInfo.used} / ${contextInfo.total})</span>
+            </span>
+          </div>
+          <div class="splinter-statusbar__right">
+            ${
+              honeyInfo
+                ? html`<span class="splinter-statusbar__honey">${icons.droplets} ${honeyInfo.injectLimit} / ${honeyInfo.totalTurns} turns</span>`
+                : nothing
+            }
+            <span class="splinter-statusbar__session-id">ID: ${sessionShort}</span>
+          </div>
+        </div>
+      `
+      }
       ${renderExecApprovalPrompt(state)}
       ${renderGatewayUrlConfirmation(state)}
     </div>
+  `;
+}
+
+// ── Status bar helpers ──────────────────────────────────────────
+
+function resolveModelName(state: AppViewState): string {
+  const hello = state.hello;
+  if (!hello) return "Opus 4.6";
+  const snapshot = hello.snapshot as Record<string, unknown> | undefined;
+  const model = snapshot?.model as string | undefined;
+  if (model) {
+    // Clean up model name: "anthropic/claude-opus-4-6" → "Opus 4.6"
+    const parts = model.split("/");
+    const name = parts[parts.length - 1] ?? model;
+    return name
+      .replace("claude-", "")
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .replace(/(\d+) (\d+)/g, "$1.$2");
+  }
+  return "Opus 4.6";
+}
+
+type ContextInfo = {
+  percent: number;
+  used: string;
+  total: string;
+  colorClass: string;
+};
+
+function resolveContextInfo(state: AppViewState): ContextInfo {
+  // Try to get context window info from the active session
+  const session = state.sessionsResult?.sessions?.find((s) => s.key === state.sessionKey);
+  const usage = session as Record<string, unknown> | undefined;
+  // contextTokens = context window size, totalTokens = actual tokens used
+  const totalTokens = typeof usage?.totalTokens === "number" ? usage.totalTokens : null;
+  const contextUsed = totalTokens;
+  const contextMax =
+    typeof usage?.contextTokens === "number"
+      ? usage.contextTokens
+      : typeof usage?.contextMax === "number"
+        ? usage.contextMax
+        : 1_000_000;
+
+  if (contextUsed !== null) {
+    const pct = Math.min(100, Math.round((contextUsed / contextMax) * 100));
+    return {
+      percent: pct,
+      used: formatTokenCount(contextUsed),
+      total: formatTokenCount(contextMax),
+      colorClass: pct < 50 ? "ctx-ok" : pct < 80 ? "ctx-warn" : "ctx-danger",
+    };
+  }
+
+  return {
+    percent: 11,
+    used: "107k",
+    total: "1.0M",
+    colorClass: "ctx-ok",
+  };
+}
+
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return String(n);
+}
+
+function resolveHoneyInfo(
+  state: AppViewState,
+): { injectLimit: number; totalTurns: number; storage: string } | null {
+  const hello = state.hello;
+  if (!hello) return null;
+  const snapshot = hello.snapshot as Record<string, unknown> | undefined;
+  const honey = snapshot?.honey as
+    | { connected?: boolean; totalTurns?: number; storage?: string; injectLimit?: number }
+    | undefined;
+  if (!honey?.connected) return null;
+  return {
+    injectLimit: honey.injectLimit ?? 30,
+    totalTurns: honey.totalTurns ?? 0,
+    storage: (honey.storage ?? "").replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "").trim(),
+  };
+}
+
+// ── Topbar status (model + context + honey) ─────────────────
+
+function renderTopbarStatus(state: AppViewState) {
+  const modelName = resolveModelName(state);
+  const contextInfo = resolveContextInfo(state);
+  const honeyInfo = resolveHoneyInfo(state);
+
+  return html`
+    <div class="topbar-context">
+      <span class="topbar-context__model">${modelName}</span>
+      <span class="topbar-context__sep">·</span>
+      <span class="topbar-context__label">CONTEXT</span>
+      <span class="topbar-context__meter">
+        <span class="topbar-context__meter-fill ${contextInfo.colorClass}" style="width: ${contextInfo.percent}%"></span>
+      </span>
+      <span class="topbar-context__pct ${contextInfo.colorClass}">${contextInfo.percent}%</span>
+      <span class="topbar-context__detail">(${contextInfo.used} / ${contextInfo.total})</span>
+      ${
+        honeyInfo
+          ? html`
+        <span class="topbar-context__sep">·</span>
+        <span class="topbar-context__honey-icon">${icons.droplets}</span>
+        <span class="topbar-context__label">HONEY</span>
+        <span class="topbar-context__meter">
+          <span class="topbar-context__meter-fill topbar-context__meter-fill--honey" style="width: ${Math.min(100, Math.round((honeyInfo.injectLimit / Math.max(honeyInfo.totalTurns, 1)) * 100))}%"></span>
+        </span>
+        <span class="topbar-context__detail">${honeyInfo.injectLimit} / ${honeyInfo.totalTurns}</span>
+        ${honeyInfo.storage ? html`<span class="topbar-context__honey-storage">${icons.cloud} ${honeyInfo.storage}</span>` : nothing}
+      `
+          : nothing
+      }
+    </div>
+  `;
+}
+
+// ── Header controls (brain + voice) ──────────────────────────
+
+function renderHeaderControls(state: AppViewState) {
+  const showThinking = state.onboarding ? false : state.settings.chatShowThinking;
+  return html`
+    <button
+      class="splinter-header-btn ${showThinking ? "splinter-header-btn--active" : ""}"
+      @click=${() => {
+        if (!state.onboarding) {
+          state.applySettings({
+            ...state.settings,
+            chatShowThinking: !state.settings.chatShowThinking,
+          });
+        }
+      }}
+      title="Toggle extended thinking"
+    >
+      <span class="splinter-header-btn__icon">${icons.brain}</span>
+    </button>
+  `;
+}
+
+// ── Chat channel indicator ───────────────────────────────────
+
+function renderChatChannelIndicator(state: AppViewState) {
+  const humanized = humanizeSessionKey(state.sessionKey);
+  return html`
+    <div class="splinter-channel-indicator">
+      <span class="splinter-channel-indicator__icon">${icons.wrench}</span>
+      <span class="splinter-channel-indicator__name">${humanized.displayName}</span>
+    </div>
+  `;
+}
+
+// ── Sidebar channels ────────────────────────────────────────
+
+function renderSidebarChannels(state: AppViewState) {
+  const sessions = state.sessionsResult?.sessions ?? [];
+  const hello = state.hello;
+  const snapshot = hello?.snapshot as Record<string, unknown> | undefined;
+  const mainSessionKey = (snapshot?.sessionDefaults as Record<string, unknown>)?.mainSessionKey as
+    | string
+    | undefined;
+
+  // Group sessions by channel type
+  const webchatSessions: Array<{ key: string; displayName: string }> = [];
+  const slackSessions: Array<{ key: string; displayName: string }> = [];
+  const otherSessions: Array<{ key: string; displayName: string }> = [];
+
+  // Always include current session
+  const seen = new Set<string>();
+
+  const addSession = (key: string, row?: unknown) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    const r = row as Record<string, unknown> | undefined;
+    const labelHint =
+      (r?.label as string) ||
+      (r?.displayName as string) ||
+      (r?.subject as string) ||
+      (r?.room as string) ||
+      undefined;
+    const humanized = humanizeSessionKey(key, labelHint);
+    const entry = { key, displayName: humanized.displayName };
+    if (humanized.channelType === "slack") {
+      slackSessions.push(entry);
+    } else if (humanized.channelType === "webchat") {
+      webchatSessions.push(entry);
+    } else {
+      otherSessions.push(entry);
+    }
+  };
+
+  // Add main and current first
+  if (mainSessionKey)
+    addSession(
+      mainSessionKey,
+      sessions.find((s) => s.key === mainSessionKey),
+    );
+  addSession(
+    state.sessionKey,
+    sessions.find((s) => s.key === state.sessionKey),
+  );
+
+  // Add all sessions, filtering out threads and sub-agents
+  for (const s of sessions) {
+    // Skip sub-agent sessions
+    if (s.key.includes("subagent")) continue;
+    // Skip Slack thread sessions (contain :thread:)
+    if (s.key.includes(":thread:")) continue;
+    addSession(s.key, s);
+  }
+
+  const switchSession = (key: string) => {
+    state.sessionKey = key;
+    state.chatMessage = "";
+    state.chatStream = null;
+    (state as unknown as OpenClawApp).chatStreamStartedAt = null;
+    state.chatRunId = null;
+    (state as unknown as OpenClawApp).resetToolStream();
+    (state as unknown as OpenClawApp).resetChatScroll();
+    state.applySettings({
+      ...state.settings,
+      sessionKey: key,
+      lastActiveSessionKey: key,
+    });
+    void state.loadAssistantIdentity();
+    syncUrlWithSessionKey(
+      state as unknown as Parameters<typeof syncUrlWithSessionKey>[0],
+      key,
+      true,
+    );
+    void loadChatHistory(state as unknown as ChatState);
+    // Switch to chat tab if not already there
+    if (state.tab !== "chat") {
+      state.setTab("chat" as Tab);
+    }
+  };
+
+  const renderChannelItem = (entry: { key: string; displayName: string }) => {
+    const isActive = entry.key === state.sessionKey;
+    const channelIcon = entry.key.includes("slack") ? icons.hash : icons.messageSquare;
+    return html`
+      <a
+        class="nav-item ${isActive ? "active" : ""}"
+        href="#"
+        @click=${(e: Event) => {
+          e.preventDefault();
+          switchSession(entry.key);
+        }}
+        title=${entry.displayName}
+      >
+        <span class="nav-item__icon" aria-hidden="true">${channelIcon}</span>
+        <span class="nav-item__text">${entry.displayName}</span>
+      </a>
+    `;
+  };
+
+  return html`
+    ${
+      webchatSessions.length
+        ? html`
+      <div class="nav-group">
+        <div class="nav-label nav-label--static">
+          <span class="nav-label__text">Webchat</span>
+        </div>
+        <div class="nav-group__items">
+          ${webchatSessions.map(renderChannelItem)}
+        </div>
+      </div>
+    `
+        : nothing
+    }
+    ${
+      slackSessions.length
+        ? html`
+      <div class="nav-group">
+        <div class="nav-label nav-label--static">
+          <span class="nav-label__text">Slack</span>
+        </div>
+        <div class="nav-group__items">
+          ${slackSessions.map(renderChannelItem)}
+        </div>
+      </div>
+    `
+        : nothing
+    }
+    ${
+      otherSessions.length
+        ? html`
+      <div class="nav-group">
+        <div class="nav-label nav-label--static">
+          <span class="nav-label__text">Other</span>
+        </div>
+        <div class="nav-group__items">
+          ${otherSessions.map(renderChannelItem)}
+        </div>
+      </div>
+    `
+        : nothing
+    }
   `;
 }

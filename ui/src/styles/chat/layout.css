@@ -139,6 +139,89 @@
 }
 
 /* Chat compose - sticky at bottom */
+/* ── Command toolbar ── */
+.chat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 28px;
+}
+.chat-toolbar--collapsed .chat-toolbar__actions {
+  display: none;
+}
+.chat-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+}
+.chat-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.chat-toolbar__btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+.chat-toolbar__btn svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+.chat-toolbar__btn--stop {
+  color: var(--danger, #ef4444);
+}
+.chat-toolbar__btn--stop:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+.chat-toolbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+}
+.chat-toolbar__toggle:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+.chat-toolbar__toggle svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+/* Queue mode send button */
+.chat-compose__send-btn--queue {
+  opacity: 0.7;
+}
+
 .chat-compose {
   position: sticky;
   bottom: 0;
@@ -259,12 +342,144 @@
   justify-content: flex-end;
 }
 
-/* Compose input row - horizontal layout */
+/* Compose input row - horizontal layout (legacy) */
 .chat-compose__row {
   display: flex;
   align-items: stretch;
   gap: 12px;
   flex: 1;
+}
+
+/* New inline compose input */
+.chat-compose__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.chat-compose__input-wrap:focus-within {
+  border-color: rgba(255, 92, 92, 0.4);
+  box-shadow: 0 0 0 3px rgba(255, 92, 92, 0.08);
+}
+
+.chat-compose__textarea,
+.chat-compose__input-wrap textarea {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px !important;
+  max-height: 150px;
+  padding: 8px 8px;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  resize: none;
+  outline: none !important;
+  box-shadow: none !important;
+  overflow-y: auto;
+}
+
+.chat-compose__textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.chat-compose__inline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.chat-compose__inline-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chat-compose__inline-btn--active {
+  color: var(--accent) !important;
+  background: rgba(255, 92, 92, 0.12) !important;
+}
+
+.chat-compose__inline-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-compose__inline-btn--left {
+  margin-right: 2px;
+}
+
+.chat-compose__inline-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.chat-compose__send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    opacity 120ms ease,
+    transform 80ms ease;
+}
+
+.chat-compose__send-btn:hover {
+  opacity: 0.9;
+}
+
+.chat-compose__send-btn:active {
+  transform: scale(0.95);
+}
+
+.chat-compose__send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.chat-compose__send-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 :root[data-theme="light"] .chat-compose {
@@ -289,14 +504,24 @@
   height: 40px;
   min-height: 40px;
   max-height: 150px;
-  padding: 9px 12px;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
   overflow-y: auto;
   resize: none;
   white-space: pre-wrap;
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.45;
+  background: var(--card);
+  border: 1px solid var(--border);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.chat-compose .chat-compose__field textarea:focus {
+  border-color: rgba(255, 92, 92, 0.4);
+  box-shadow: 0 0 0 3px rgba(255, 92, 92, 0.08);
 }
 
 .chat-compose__field textarea:disabled {
@@ -395,6 +620,42 @@
   stroke-width: 1.5px;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Tools container (mic + attach) */
+.chat-compose__tools {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  flex-shrink: 0;
+  align-items: flex-end;
+}
+
+/* Voice input mic button */
+.chat-compose__mic {
+  flex-shrink: 0;
+}
+
+/* Attach button */
+.chat-compose__attach {
+  flex-shrink: 0;
+}
+
+.chat-compose__mic--active {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: white !important;
+  animation: mic-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .chat-controls__session select {

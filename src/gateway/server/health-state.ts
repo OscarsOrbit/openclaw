@@ -12,6 +12,46 @@ let healthCache: HealthSummary | null = null;
 let healthRefresh: Promise<HealthSummary> | null = null;
 let broadcastHealthUpdate: ((snap: HealthSummary) => void) | null = null;
 
+// ── Honey status cache ──────────────────────────────────────
+const HONEY_URL = "http://localhost:7779";
+let honeyCache: {
+  connected: boolean;
+  totalTurns?: number;
+  totalSessions?: number;
+  storage?: string;
+  injectLimit?: number;
+} | null = null;
+let honeyCacheTs = 0;
+const HONEY_CACHE_TTL_MS = 30_000; // refresh every 30s
+
+async function fetchHoneyStatus(): Promise<typeof honeyCache> {
+  const now = Date.now();
+  if (honeyCache && now - honeyCacheTs < HONEY_CACHE_TTL_MS) return honeyCache;
+  try {
+    const resp = await fetch(`${HONEY_URL}/health`, { signal: AbortSignal.timeout(1500) });
+    if (!resp.ok) {
+      honeyCache = { connected: false };
+      honeyCacheTs = now;
+      return honeyCache;
+    }
+    const data = (await resp.json()) as Record<string, unknown>;
+    const injectLimit = parseInt(process.env.HONEY_LIMIT || "100", 10);
+    honeyCache = {
+      connected: true,
+      totalTurns: typeof data.total_turns === "number" ? data.total_turns : undefined,
+      totalSessions: typeof data.total_sessions === "number" ? data.total_sessions : undefined,
+      storage: typeof data.storage === "string" ? data.storage : undefined,
+      injectLimit,
+    };
+    honeyCacheTs = now;
+    return honeyCache;
+  } catch {
+    honeyCache = { connected: false };
+    honeyCacheTs = now;
+    return honeyCache;
+  }
+}
+
 export function buildGatewaySnapshot(): Snapshot {
   const cfg = loadConfig();
   const defaultAgentId = resolveDefaultAgentId(cfg);
@@ -22,12 +62,13 @@ export function buildGatewaySnapshot(): Snapshot {
   const uptimeMs = Math.round(process.uptime() * 1000);
   // Health is async; caller should await getHealthSnapshot and replace later if needed.
   const emptyHealth: unknown = {};
+  const model = cfg.agents?.defaults?.model?.primary ?? "";
   return {
+    model,
     presence,
     health: emptyHealth,
     stateVersion: { presence: presenceVersion, health: healthVersion },
     uptimeMs,
-    // Surface resolved paths so UIs can display the true config location.
     configPath: CONFIG_PATH,
     stateDir: STATE_DIR,
     sessionDefaults: {
@@ -36,7 +77,14 @@ export function buildGatewaySnapshot(): Snapshot {
       mainSessionKey,
       scope,
     },
+    honey: honeyCache ?? undefined,
   };
+}
+
+/** Enrich a snapshot with async honey status. Call after buildGatewaySnapshot(). */
+export async function enrichSnapshotWithHoney(snapshot: Snapshot): Promise<void> {
+  const honey = await fetchHoneyStatus();
+  if (honey) snapshot.honey = honey;
 }
 
 export function getHealthCache(): HealthSummary | null {

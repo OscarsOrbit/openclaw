@@ -45,6 +45,7 @@ export const StateVersionSchema = Type.Object(
 
 export const SnapshotSchema = Type.Object(
   {
+    model: Type.Optional(Type.String()),
     presence: Type.Array(PresenceEntrySchema),
     health: HealthSnapshotSchema,
     stateVersion: StateVersionSchema,
@@ -52,6 +53,15 @@ export const SnapshotSchema = Type.Object(
     configPath: Type.Optional(NonEmptyString),
     stateDir: Type.Optional(NonEmptyString),
     sessionDefaults: Type.Optional(SessionDefaultsSchema),
+    honey: Type.Optional(
+      Type.Object({
+        connected: Type.Boolean(),
+        totalTurns: Type.Optional(Type.Integer({ minimum: 0 })),
+        totalSessions: Type.Optional(Type.Integer({ minimum: 0 })),
+        storage: Type.Optional(Type.String()),
+        injectLimit: Type.Optional(Type.Integer({ minimum: 0 })),
+      }),
+    ),
   },
   { additionalProperties: false },
 );

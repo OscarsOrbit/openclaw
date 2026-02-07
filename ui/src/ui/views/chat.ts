@@ -14,6 +14,68 @@ import { icons } from "../icons.ts";
 import { renderMarkdownSidebar } from "./markdown-sidebar.ts";
 import "../components/resizable-divider.ts";
 
+/** Max base64 payload ~350KB to stay under 512KB WS frame limit with overhead. */
+const MAX_IMAGE_BYTES = 350_000;
+const MAX_IMAGE_DIM = 1600;
+
+/** Resize an image dataUrl to fit within WS payload limits. Returns a (possibly smaller) data URL. */
+function resizeImage(dataUrl: string, mimeType: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      // Check if resize is needed
+      const base64Part = dataUrl.split(",")[1] ?? "";
+      const currentBytes = base64Part.length * 0.75; // approximate decoded size
+      if (
+        currentBytes <= MAX_IMAGE_BYTES &&
+        img.width <= MAX_IMAGE_DIM &&
+        img.height <= MAX_IMAGE_DIM
+      ) {
+        resolve(dataUrl);
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+
+      // Scale down to max dimension
+      if (width > MAX_IMAGE_DIM || height > MAX_IMAGE_DIM) {
+        const scale = Math.min(MAX_IMAGE_DIM / width, MAX_IMAGE_DIM / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+
+      // Iteratively reduce quality until under size limit
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      let quality = 0.85;
+      let result = canvas.toDataURL("image/jpeg", quality);
+      while (quality > 0.1) {
+        const b64 = result.split(",")[1] ?? "";
+        if (b64.length * 0.75 <= MAX_IMAGE_BYTES) break;
+        quality -= 0.1;
+        result = canvas.toDataURL("image/jpeg", quality);
+      }
+
+      // If still too large, scale down more
+      if ((result.split(",")[1] ?? "").length * 0.75 > MAX_IMAGE_BYTES) {
+        const scale2 = 0.5;
+        canvas.width = Math.round(width * scale2);
+        canvas.height = Math.round(height * scale2);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        result = canvas.toDataURL("image/jpeg", 0.7);
+      }
+
+      resolve(result);
+    };
+    img.onerror = () => resolve(dataUrl); // fallback to original
+    img.src = dataUrl;
+  });
+}
+
 export type CompactionIndicatorStatus = {
   active: boolean;
   startedAt: number | null;
@@ -64,10 +126,17 @@ export type ChatProps = {
   onAbort?: () => void;
   onQueueRemove: (id: string) => void;
   onNewSession: () => void;
+  onCompact?: () => void;
+  onRestart?: () => void;
+  toolbarExpanded?: boolean;
+  onToggleToolbar?: () => void;
   onOpenSidebar?: (content: string) => void;
   onCloseSidebar?: () => void;
   onSplitRatioChange?: (ratio: number) => void;
   onChatScroll?: (event: Event) => void;
+  // Voice input
+  isListening?: boolean;
+  onVoiceToggle?: () => void;
 };
 
 const COMPACTION_TOAST_DURATION_MS = 5000;
@@ -137,18 +206,93 @@ function handlePaste(e: ClipboardEvent, props: ChatProps) {
     }
 
     const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      const dataUrl = reader.result as string;
+    reader.addEventListener("load", async () => {
+      const rawDataUrl = reader.result as string;
+      const dataUrl = await resizeImage(rawDataUrl, file.type);
+      const mimeType = dataUrl.startsWith("data:image/jpeg") ? "image/jpeg" : file.type;
       const newAttachment: ChatAttachment = {
         id: generateAttachmentId(),
         dataUrl,
-        mimeType: file.type,
+        mimeType,
       };
       const current = props.attachments ?? [];
       props.onAttachmentsChange?.([...current, newAttachment]);
     });
     reader.readAsDataURL(file);
   }
+}
+
+function handleFileInput(e: Event, props: ChatProps) {
+  const input = e.target as HTMLInputElement;
+  const files = input.files;
+  if (!files || !props.onAttachmentsChange) return;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    // Accept images (including HEIC/HEIF from iOS which may report as "")
+    if (file.type && !file.type.startsWith("image/")) continue;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const rawDataUrl = reader.result as string;
+      const dataUrl = await resizeImage(rawDataUrl, file.type);
+      const mimeType = dataUrl.startsWith("data:image/jpeg") ? "image/jpeg" : file.type;
+      const newAttachment: ChatAttachment = {
+        id: generateAttachmentId(),
+        dataUrl,
+        mimeType,
+      };
+      const current = props.attachments ?? [];
+      props.onAttachmentsChange?.([...current, newAttachment]);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Clear input so the same file can be selected again
+  input.value = "";
+}
+
+function renderCommandToolbar(props: ChatProps, isBusy: boolean, canAbort: boolean) {
+  const expanded = props.toolbarExpanded !== false; // default expanded
+  return html`
+    <div class="chat-toolbar ${expanded ? "" : "chat-toolbar--collapsed"}">
+      <div class="chat-toolbar__actions">
+        ${
+          isBusy && canAbort
+            ? html`
+          <button class="chat-toolbar__btn chat-toolbar__btn--stop" @click=${props.onAbort} title="Stop">
+            ${icons.squareStop} <span class="chat-toolbar__btn-label">Stop</span>
+          </button>
+        `
+            : nothing
+        }
+        <button class="chat-toolbar__btn" @click=${props.onNewSession} title="New Session">
+          ${icons.refreshCw} <span class="chat-toolbar__btn-label">New Sesh</span>
+        </button>
+        ${
+          props.onCompact
+            ? html`
+          <button class="chat-toolbar__btn" @click=${props.onCompact} title="Compact context">
+            ${icons.shrink} <span class="chat-toolbar__btn-label">Compact</span>
+          </button>
+        `
+            : nothing
+        }
+        ${
+          props.onRestart
+            ? html`
+          <button class="chat-toolbar__btn" @click=${props.onRestart} title="Restart gateway">
+            ${icons.rotateCcw} <span class="chat-toolbar__btn-label">Restart</span>
+          </button>
+        `
+            : nothing
+        }
+      </div>
+      <button class="chat-toolbar__toggle" @click=${props.onToggleToolbar} title="${expanded ? "Hide toolbar" : "Show toolbar"}">
+        ${expanded ? icons.chevronDown : icons.chevronUp}
+      </button>
+    </div>
+  `;
 }
 
 function renderAttachmentPreview(props: ChatProps) {
@@ -201,7 +345,7 @@ export function renderChat(props: ChatProps) {
   const composePlaceholder = props.connected
     ? hasAttachments
       ? "Add a message or paste more images..."
-      : "Message (↩ to send, Shift+↩ for line breaks, paste images)"
+      : "Message Splinter..."
     : "Connect to the gateway to start chatting…";
 
   const splitRatio = props.splitRatio ?? 0.6;
@@ -358,55 +502,89 @@ export function renderChat(props: ChatProps) {
       }
 
       <div class="chat-compose">
+        ${renderCommandToolbar(props, isBusy, canAbort)}
         ${renderAttachmentPreview(props)}
-        <div class="chat-compose__row">
-          <label class="field chat-compose__field">
-            <span>Message</span>
-            <textarea
-              ${ref((el) => el && adjustTextareaHeight(el as HTMLTextAreaElement))}
-              .value=${props.draft}
-              ?disabled=${!props.connected}
-              @keydown=${(e: KeyboardEvent) => {
-                if (e.key !== "Enter") {
-                  return;
-                }
-                if (e.isComposing || e.keyCode === 229) {
-                  return;
-                }
-                if (e.shiftKey) {
-                  return;
-                } // Allow Shift+Enter for line breaks
-                if (!props.connected) {
-                  return;
-                }
-                e.preventDefault();
-                if (canCompose) {
-                  props.onSend();
-                }
-              }}
-              @input=${(e: Event) => {
-                const target = e.target as HTMLTextAreaElement;
-                adjustTextareaHeight(target);
-                props.onDraftChange(target.value);
-              }}
-              @paste=${(e: ClipboardEvent) => handlePaste(e, props)}
-              placeholder=${composePlaceholder}
-            ></textarea>
-          </label>
-          <div class="chat-compose__actions">
+        <div class="chat-compose__input-wrap" @click=${(e: Event) => {
+          // Focus textarea when clicking the wrapper area
+          const wrap = e.currentTarget as HTMLElement;
+          const ta = wrap.querySelector(".chat-compose__textarea") as HTMLTextAreaElement;
+          if (ta && e.target === wrap) ta.focus();
+        }}>
+          <input
+            type="file"
+            accept="image/*,.heic,.heif"
+            multiple
+            class="chat-compose__file-input"
+            style="display: none; position: absolute; opacity: 0; pointer-events: none;"
+            @change=${(e: Event) => handleFileInput(e, props)}
+          />
+          <button
+            class="chat-compose__inline-btn chat-compose__inline-btn--left"
+            @click=${(e: Event) => {
+              const btn = e.currentTarget as HTMLElement;
+              const input = btn
+                .closest(".chat-compose__input-wrap")
+                ?.querySelector(".chat-compose__file-input") as HTMLInputElement;
+              input?.click();
+            }}
+            title="Attach file"
+            aria-label="Attach file"
+          >
+            ${icons.paperclip}
+          </button>
+          <textarea
+            ${ref((el) => el && adjustTextareaHeight(el as HTMLTextAreaElement))}
+            class="chat-compose__textarea"
+            .value=${props.draft}
+            ?disabled=${!props.connected}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key !== "Enter") {
+                return;
+              }
+              if (e.isComposing || e.keyCode === 229) {
+                return;
+              }
+              if (e.shiftKey) {
+                return;
+              }
+              if (!props.connected) {
+                return;
+              }
+              e.preventDefault();
+              if (canCompose) {
+                props.onSend();
+              }
+            }}
+            @input=${(e: Event) => {
+              const target = e.target as HTMLTextAreaElement;
+              adjustTextareaHeight(target);
+              props.onDraftChange(target.value);
+            }}
+            @paste=${(e: ClipboardEvent) => handlePaste(e, props)}
+            placeholder=${composePlaceholder}
+          ></textarea>
+          <div class="chat-compose__inline-right">
+            ${
+              props.onVoiceToggle
+                ? html`
+                  <button
+                    class="chat-compose__inline-btn ${props.isListening ? "chat-compose__inline-btn--active" : ""}"
+                    @click=${props.onVoiceToggle}
+                    title=${props.isListening ? "Stop listening" : "Voice input"}
+                    aria-label=${props.isListening ? "Stop listening" : "Voice input"}
+                  >
+                    ${props.isListening ? icons.micOff : icons.mic}
+                  </button>
+                `
+                : nothing
+            }
             <button
-              class="btn"
-              ?disabled=${!props.connected || (!canAbort && props.sending)}
-              @click=${canAbort ? props.onAbort : props.onNewSession}
-            >
-              ${canAbort ? "Stop" : "New session"}
-            </button>
-            <button
-              class="btn primary"
+              class="chat-compose__send-btn ${isBusy ? "chat-compose__send-btn--queue" : ""}"
               ?disabled=${!props.connected}
               @click=${props.onSend}
+              title="${isBusy ? "Queue message" : "Send message"}"
             >
-              ${isBusy ? "Queue" : "Send"}<kbd class="btn-kbd">↵</kbd>
+              ${isBusy ? icons.listPlus : icons.send}
             </button>
           </div>
         </div>
@@ -479,6 +657,11 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
     const normalized = normalizeMessage(msg);
 
     if (!props.showThinking && normalized.role.toLowerCase() === "toolresult") {
+      continue;
+    }
+
+    // Skip system messages from chat display — they're infrastructure noise
+    if (normalized.role.toLowerCase() === "system") {
       continue;
     }
 

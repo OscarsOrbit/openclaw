@@ -136,6 +136,11 @@ export class OpenClawApp extends LitElement {
   @state() chatThinkingLevel: string | null = null;
   @state() chatQueue: ChatQueueItem[] = [];
   @state() chatAttachments: ChatAttachment[] = [];
+  @state() chatVoiceListening = false;
+  @state() chatVoiceSupported =
+    typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  private speechRecognition: SpeechRecognition | null = null;
   // Sidebar state for tool output viewing
   @state() sidebarOpen = false;
   @state() sidebarContent: string | null = null;
@@ -218,6 +223,14 @@ export class OpenClawApp extends LitElement {
   @state() agentSkillsError: string | null = null;
   @state() agentSkillsReport: SkillStatusReport | null = null;
   @state() agentSkillsAgentId: string | null = null;
+
+  @state() honeyStatus: {
+    connected: boolean;
+    total_turns?: number;
+    total_sessions?: number;
+    storage?: string;
+  } | null = null;
+  @state() chatToolbarExpanded = true;
 
   @state() sessionsLoading = false;
   @state() sessionsResult: SessionsListResult | null = null;
@@ -447,6 +460,87 @@ export class OpenClawApp extends LitElement {
       messageOverride,
       opts,
     );
+  }
+
+  private voiceMessageBase = "";
+
+  handleVoiceToggle() {
+    if (!this.chatVoiceSupported) return;
+
+    if (this.chatVoiceListening) {
+      // Stop listening
+      this.speechRecognition?.stop();
+      this.chatVoiceListening = false;
+      return;
+    }
+
+    // Start listening
+    const SpeechRecognition =
+      (
+        window as typeof window & {
+          SpeechRecognition?: typeof window.SpeechRecognition;
+          webkitSpeechRecognition?: typeof window.SpeechRecognition;
+        }
+      ).SpeechRecognition ??
+      (
+        window as typeof window & {
+          webkitSpeechRecognition?: typeof window.SpeechRecognition;
+        }
+      ).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) return;
+
+    // Store the current message before we start
+    this.voiceMessageBase = this.chatMessage.trim();
+
+    this.speechRecognition = new SpeechRecognition();
+    this.speechRecognition.continuous = false;
+    this.speechRecognition.interimResults = true;
+    this.speechRecognition.lang = "en-US";
+
+    this.speechRecognition.onstart = () => {
+      this.chatVoiceListening = true;
+    };
+
+    this.speechRecognition.onresult = (event) => {
+      let interimTranscript = "";
+      let finalTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
+      }
+
+      // Build the message: base + final + interim (interim will be replaced on next update)
+      const base = this.voiceMessageBase;
+      if (finalTranscript) {
+        // Commit final transcript to the base
+        this.voiceMessageBase = base ? `${base} ${finalTranscript}` : finalTranscript;
+      }
+
+      // Show base + any interim results
+      const current = this.voiceMessageBase;
+      this.chatMessage = interimTranscript
+        ? current
+          ? `${current} ${interimTranscript}`
+          : interimTranscript
+        : current;
+    };
+
+    this.speechRecognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      this.chatVoiceListening = false;
+    };
+
+    this.speechRecognition.onend = () => {
+      this.chatVoiceListening = false;
+    };
+
+    this.speechRecognition.start();
   }
 
   async handleWhatsAppStart(force: boolean) {
